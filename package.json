@@ -1,0 +1,35 @@
+{
+  "name": "graphics-region",
+  "version": "0.1.0",
+  "description": "A JavaScript implementation of the Region abstract data type, which GUIs use to perform constructive solid geometry with 2-D rectangles.",
+  "author": "Sean Werkema",
+  "main": "lib/region.js",
+  "files": [
+    "lib/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/seanofw/graphics-region-js"
+  },
+  "bugs": {
+    "url": "https://github.com/seanofw/graphics-region-js/issues"
+  },
+  "keywords": [
+    "region",
+    "region2d",
+    "regionjs",
+    "rectangle",
+    "graphics",
+    "union",
+    "intersect",
+    "csg"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-preset-es2015": "^6.24.1",
+    "mocha": "^3.4.1",
+    "uglifyjs": "^2.4.10"
+  },
+  "license": "Apache-2.0"
+}
