@@ -34,26 +34,34 @@ constructed.
 
 **Binary operations:**
 
-```var newRegion = myRegion.union(yourRegion);
+```
+var newRegion = myRegion.union(yourRegion);
 var newRegion = myRegion.intersect(yourRegion);
 var newRegion = myRegion.xor(yourRegion);
-var newRegion = myRegion.subtract(yourRegion);```
+var newRegion = myRegion.subtract(yourRegion);
+```
 
 **Unary operations:**
 
-```var newRegion = myRegion.not();
-var newRegion = myRegion.clone();```
+```
+var newRegion = myRegion.not();
+var newRegion = myRegion.clone();
+```
 
 **Testing and miscellaneous:**
 
-```var bool = myRegion.isEmpty();                  // O(1)
+```
+var bool = myRegion.isEmpty();                  // O(1)
 var bool = myRegion.isPointIn(x);               // O(lg n)
 var bool = myRegion.doesIntersect(yourRegion);  // O(n+m)
-var bool = myRegion.equals(yourRegion);         // O(n)```
+var bool = myRegion.equals(yourRegion);         // O(n)
+```
 
 **Data extraction:**
 
-```var arrayOfRects = myRegion.getAsRects(minY, maxY);
+```
+var arrayOfRects = myRegion.getAsRects(minY, maxY);
 var arrayOfSpans = myRegion.getSpans();         // This returns a copy, not the original span data.
-var minAndMax = myRegion.getBounds();           // O(1)```
+var minAndMax = myRegion.getBounds();           // O(1)
+```
 
