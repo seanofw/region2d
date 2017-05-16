@@ -9,10 +9,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/seanofw/graphics-region-js"
+    "url": "https://github.com/seanofw/graphics-region"
   },
   "bugs": {
-    "url": "https://github.com/seanofw/graphics-region-js/issues"
+    "url": "https://github.com/seanofw/graphics-region/issues"
   },
   "keywords": [
     "region",
