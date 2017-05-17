@@ -40,9 +40,10 @@
  *   result = a.isEmpty();          // Return true/false if the set is empty.
  *   result = a.isPointIn(x);       // Return true if the given coordinate is contained within the set.
  *   result = a.doesIntersect(b);   // Return true if the logical intersection of the two sets is nonempty.
- *   result = a.matches(b);         // Return true if the sets are identical (ignoring their Y-coordinates).
- *   result = a.getBounds(b);       // Return { minX:, maxX: } of the Region1D.
- *   result = a.getRects(y, height); // Return an array of { x:, y:, width:, height: } rectangles describing the Region1D.
+ *   result = a.equals(b);          // Return true if the sets are identical.
+ *   result = a.getBounds(b);       // Return { min:, max: } of the Region1D.
+ *   result = a.getAsRects(minY, maxY); // Return an array of { x:, y:, width:, height: } rectangles describing the Region1D.
+ *   result = a.getRawSpans();      // Return a raw array of numbers, the same kind that was used to construct the Region1D.
  *
  * All Region1D operations are carefully written to be bounded in both time and
  * space, and all will run in no worse than O(n) or O(n+m) time.
@@ -85,20 +86,14 @@ const Region1D = (function() {
 	// 1-D raw-data-manipulation functions.
 
 	/**
-	 * Calculate the combination of the given (sorted!) arrays of 1-D region data.
-	 * Returns a new array that contains the 1-D combination.
+	 * Make a function that generates successive lowest values from each of the two given arrays.
 	 */
-	combineData = function(array1, array2, op) {
-
-		// Special case: Nothin' from nothin' gives nothin'.
-		if (!array1.length && !array2.length)
-			return [];
-
+	makeCoordinateGenerator = function(array1, array2) {
 		let i1 = 0, i2 = 0;
 		
 		// Get the next coordinate with the lowest value from either array, keeping
 		// track of whether it is a begin (+1) or end (-1) coordinate of its span.  O(1).
-		const getNext = function() {
+		return function() {
 			if (i1 >= array1.length && i2 >= array2.length)
 				return null;
 			else if (i1 >= array1.length)
@@ -108,6 +103,21 @@ const Region1D = (function() {
 			else
 				return { x: array2[i2], kind: i2++ & 1 ? -1 : +1, src: 2 };
 		};
+	},
+
+	/**
+	 * Calculate the combination of the given (sorted!) arrays of 1-D region data.
+	 * Returns a new array that contains the 1-D combination.
+	 */
+	combineData = function(array1, array2, op) {
+
+		// Special case: Nothin' from nothin' gives nothin'.
+		if (!array1.length && !array2.length)
+			return [];
+
+		// Get the next coordinate with the lowest value from either array, keeping
+		// track of whether it is a begin (+1) or end (-1) coordinate of its span.  O(1).
+		const getNext = makeCoordinateGenerator(array1, array2);
 		
 		let depth1 = 0, depth2 = 0;
 		let state = 0, lastState = 0;
@@ -119,7 +129,7 @@ const Region1D = (function() {
 		// new spans in the 'result' array.  O(n+m).
 		const result = [];
 		do {
-			// Do whatever happens at this first coordinate.
+			// Do whatever happens at this coordinate.
 			if (coord.src === 1) depth1 += coord.kind;
 			else depth2 += coord.kind;
 
@@ -137,6 +147,7 @@ const Region1D = (function() {
 
 			// If we entered/exited a new span, emit a start/end X value.
 			if (state !== lastState) {
+				if (state < 0) return result;
 				result.push(coord.x);
 			}
 
@@ -180,6 +191,7 @@ const Region1D = (function() {
 
 	/**
 	 * Calculate whether the given arrays of 1-D region data intersect.
+	 * This requires constant memory, but it may take O(n+m) time.
 	 * Returns true or false.
 	 */
 	doesIntersectData = function(array1, array2) {
@@ -192,13 +204,34 @@ const Region1D = (function() {
 			|| array2[array2.length - 1] < array1[0]) return false;
 			
 		// Test all the spans against each other.
-		let result = false;
-		combineData(array1, array2, (depth1, lastDepth1, depth2, lastDepth2) => {
-			if ((depth1 | depth2) !== (lastDepth1 | lastDepth2))
-				result = true;
-			return false;
-		});
-		return result;
+		let depth1 = 0, depth2 = 0;
+		const getNext = makeCoordinateGenerator(array1, array2);
+
+		// Do whatever needs to happen at the very first coordinate.
+		let coord = getNext();
+
+		do {
+			// Do whatever happens at this coordinate.
+			if (coord.src === 1) depth1 += coord.kind;
+			else depth2 += coord.kind;
+
+			// Process any subsequent coordinates at the same 'x' offset,
+			// also collecting the one after it.
+			let nextCoord;
+			while ((nextCoord = getNext()) && nextCoord.x === coord.x) {
+				if (nextCoord.src === 1) depth1 += nextCoord.kind;
+				else depth2 += nextCoord.kind;
+			}
+			
+			// Change the state to match whatever happened here.
+			if (depth1 & depth2) {
+				return true;
+			}
+
+			coord = nextCoord;
+		} while (coord);
+
+		return false;
 	},
 
 	/**
@@ -206,17 +239,42 @@ const Region1D = (function() {
 	 */
 	isPointInData = function(array, x) {
 		// It can't be in the empty set.
-		if (!array.length) return false;
+		if (!array.length || typeof x !== 'number') return false;
 		
 		// If it's outside the bounds, it's not anywhere within any of the spans.
 		if (x < array[0] || x > array[array.length - 1]) return false;
 		
-		// Spin over all the spans for real.
-		for (let i = 0, l = array.length; i < l; i += 2) {
-			if (x >= array[i] && x < array[i+1]) return true;
+		if (array.length <= 8) {
+			// Spin over all the spans in a simple linear search.
+			for (let i = 0, l = array.length; i < l; i += 2) {
+				if (x >= array[i] && x < array[i+1]) return true;
+			}
+			return false;
 		}
-		
-		return false;
+		else {
+			// Binary search to find the array index that x is either after or at.
+			let start = 0, end = array.length;
+			let index = 0;
+			while (start < end) {
+				const midpt = ((start + end) / 2) & ~0;
+				const value = array[midpt];
+				if (x === value) {
+					index = midpt;
+					break;
+				}
+				else if (x < value) {
+					end = midpt;
+				}
+				else {
+					index = midpt;
+					start = midpt + 1;
+				}
+			}
+
+			// 'index' now is the closest value at or before 'x', so we just need to see if
+			// it's an odd or even array index to know if 'x' is inside the span or outside it.
+			return !(index & 1);
+		}
 	},
 	
 	/**
@@ -257,7 +315,7 @@ const Region1D = (function() {
 	 * Determine if two arrays of (sorted!) 1-D region data are equivalent.
 	 * Returns true if they are the same, false if they are different.
 	 */
-	doesDataMatch = function(array1, array2) {
+	arrayEquals = function(array1, array2) {
 		if (array1.length != array2.length) return false;
 		for (let i = 0, l = array1.length; i < l; i++) {
 			if (array1[i] != array2[i]) return false;
@@ -269,17 +327,34 @@ const Region1D = (function() {
 	 * Transform a set of 1-D region data into an array of rectangles with
 	 * the given same y and height values.
 	 *
-	 * Returns a new array that contains rectangles of the form { x:, y:, width: height: }.
+	 * Returns a new array that contains rectangles of the form { x:, y:, width:, height:, left:, top:, right:, bottom: }.
 	 */
-	makeRects = function(array, y, height) {
+	makeRects = function(array, minY, maxY) {
 		const result = [];
+		const height = maxY - minY;
 		
 		for (let i = 0, l = array.length; i < l; i += 2) {
-			const min = array[i  ];
-			const max = array[i+1];
-			result.push({ x: min, y: y, width: max - min, height: height });
+			const minX = array[i  ];
+			const maxX = array[i+1];
+			result.push({
+				x: minX, y: minY, width: maxX - minX, height:height,
+				left: minX, top: minY, right: maxX, bottom: maxY
+			});
 		}
 		
+		return result;
+	},
+
+	/**
+	 * Clone a set of 1-D region data into a raw array.
+	 * Returns a new array that contains pairs of points.
+	 */
+	makeRawSpans = function(array) {
+		const result = [];
+		for (let i = 0, l = array.length; i < l; i += 2) {
+			result.push(array[i  ]);
+			result.push(array[i+1]);
+		}
 		return result;
 	},
 
@@ -391,8 +466,8 @@ const Region1D = (function() {
 
 		this._opaque = makeProtectedData({
 			array: array,
-			minX: array.length ? array[0] : pInf,
-			maxX: array.length ? array[array.length - 1] : nInf,
+			min: array.length ? array[0] : pInf,
+			max: array.length ? array[array.length - 1] : nInf,
 			checksum: checksum
 		}, privateKey);
 	};
@@ -409,10 +484,6 @@ const Region1D = (function() {
 	 * to do all the hard work.
 	 */
 	Region1D.prototype = {
-		clone: function() {
-			const data = getData(this);
-			return new Region1D(data.array, privateKey, data.checksum);
-		},
 		union: function(other) {
 			verifyRegion1DType(other);
 			const data = getData(this), otherData = getData(other);
@@ -438,7 +509,7 @@ const Region1D = (function() {
 			return new Region1D(notData(data.array), privateKey);
 		},
 		isEmpty: function() {
-			return !!getData(this).array.length;
+			return !getData(this).array.length;
 		},
 		doesIntersect: function(other) {
 			verifyRegion1DType(other);
@@ -447,21 +518,28 @@ const Region1D = (function() {
 		isPointIn: function(x) {
 			return isPointInData(getData(this).array, Number(x));
 		},
-		matches: function(other) {
+		equals: function(other) {
 			verifyRegion1DType(other);
 			const data = getData(this), otherData = getData(other);
 			if (data.checksum != otherData.checksum) return false;
-			return doesDataMatch(data.array, otherData.array);
+			return arrayEquals(data.array, otherData.array);
 		},
-		getRects: function(y, height) {
+		getRawSpans: function() {
 			const data = getData(this);
-			return makeRects(data.array, y, height);
+			return makeRawSpans(data.array);
+		},
+		getAsRects: function(minY, maxY) {
+			const data = getData(this);
+			return makeRects(data.array, minY, maxY);
 		},
 		getBounds: function() {
 			const data = getData(this);
-			return { minX: data.minX, maxX: data.maxX };
+			return { min: data.min, max: data.max };
 		}
 	};
+
+	// Construct a convenient shareable 'empty' instance.
+	Region1D.empty = new Region1D([], privateKey, 0);
 		
 	return Region1D;
 

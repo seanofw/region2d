@@ -25,27 +25,25 @@ and for a few operations that are O(1) or O(lg n), as noted below.
 
 **Construction:**
 
-`var myRegion = new Region1D([span1Min, span1Max, span2Min, span2Max, span3Min, span3Max, ...]);`
+```
+var myRegion = new Region1D([span1Min, span1Max, span2Min, span2Max, span3Min, span3Max, ...]);
+```
 
 1-D regions are composed of spans of included content.  Span endpoints are of the form [min, max).
 The minima and maxima of a span may include either positive or negative infinity.  Spans must not
 overlap or adjoin, and must appear in strictly ascending order.  All 1-D regions are immutable once
 constructed.
 
-**Binary operations:**
+There is also a global `Region1D.empty` static instance available.
+
+**Transformation operations:**
 
 ```
 var newRegion = myRegion.union(yourRegion);
 var newRegion = myRegion.intersect(yourRegion);
 var newRegion = myRegion.xor(yourRegion);
 var newRegion = myRegion.subtract(yourRegion);
-```
-
-**Unary operations:**
-
-```
 var newRegion = myRegion.not();
-var newRegion = myRegion.clone();
 ```
 
 **Testing and miscellaneous:**
@@ -61,7 +59,7 @@ var bool = myRegion.equals(yourRegion);         // O(n)
 
 ```
 var arrayOfRects = myRegion.getAsRects(minY, maxY);
-var arrayOfSpans = myRegion.getSpans();         // This returns a copy, not the original span data.
+var arrayOfSpans = myRegion.getRawSpans();      // This returns a copy, not the original span data.
 var minAndMax = myRegion.getBounds();           // O(1)
 ```
 

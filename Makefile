@@ -20,13 +20,12 @@ test: debug
 	$(MOCHA) test/region1d.tests.js
 
 lib/region.js lib/region.js.map: imd/src/region1d.js imd/src/region1d.js.map
-	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region.js --in-source-map imd/src/region1d.js.map --source-map lib/region1d.js.map -- $<
+	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region.js --in-source-map imd/src/region1d.js.map --source-map lib/region.js.map -- $<
 
 imd/src/region1d.js: src/region1d.js
 	$(BABEL) $(BABEL_FLAGS) --out-dir imd -- $<
 
 lib/region.debug.js lib/region.debug.js.map: imd/src/region1d.js imd/src/region1d.js.map
-	cp imd/src/region1d.js lib/region.debug.js
+	sed -e 's/region1d\.js/region\.debug\.js/' imd/src/region1d.js > lib/region.debug.js
 	cp imd/src/region1d.js.map lib/region.debug.js.map
-
 
