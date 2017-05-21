@@ -1,7 +1,60 @@
+import Region1D from './region1d';
 
-var Region = (function() {
+/**
+ * Region2D objects are semi-opaque data structures that represent a 2-dimensional
+ * set in the plane, described using axis-aligned rectangles of included points.
+ * 
+ * ------------------------------------------------------------------------------------------------
+ * 
+ * Region2D objects are capable of performing most major set-theoretic operations, including:
+ * 
+ *   result = a.union(b);           // Return a new set that is the logical union of the two sets.
+ *   result = a.intersect(b);       // Return a new set that is the logical intersection of the two sets.
+ *   result = a.subtract(b);        // Return the logical subtraction of the two sets, i.e., the
+ *                                  //   equivalent of a.union(b.not()), but computed more efficiently.
+ *   result = a.xor(b);             // Return the exclusive-or of the two sets, i.e., those ranges
+ *                                  //   which exist in one set or the other but not both.
+ *   result = a.not();              // Return the logical complement of the set (which may include infinity).
+ *   result = a.isEmpty();          // Return true/false if the set is empty.
+ *   result = a.isFinite();         // Return true/false if the set is finite (doesn't stretch to infinity).
+ *   result = a.isInfinite();       // Return true/false if the set stretches to infinity in any direction.
+ *   result = a.isRectangular();    // Return true/false if the set can be described by a single rectangle.
+ *   result = a.isPointIn(x, y);    // Return true if the given point is contained within the set.
+ *   result = a.doesIntersect(b);   // Return true if the logical intersection of the two sets is nonempty.  This is
+ *                                  //   more efficient than performing "!a.intersect(b).isEmpty()".
+ *   result = a.equals(b);          // Return true if the sets are identical.
+ *   result = a.getCount();         // Return the number of nonoverlapping rectangles that would describe this Region2D.
+ *   result = a.getRects();			// Return an array of nonoverlapping rectangles describing the Region2D.
+ *   result = a.getBounds(b);       // Return a boundary rectangle containing all of the points of the Region2D.
+ *
+ * All Region2D operations are carefully written to be bounded in both time and
+ * space, and all will run in no worse than O(n) or O(n+m) time.
+ *
+ * ------------------------------------------------------------------------------------------------
+ * 
+ * Under the hood, this is partially implemented using Region1D.  Each Region2D consists of an
+ * array of Region1D "rows" or "bands," which represent sets of rectangles with identical
+ * minY/maxY coordinates.  Each of the rows must be nonempty and must be unique (i.e., a successive
+ * row's spans must not equal a previous row spans, if the maxY of the previous row equals the minY
+ * of the successive row).
+ * 
+ * Representing regions like this is how X Windows does it, and while this design may not always
+ * result in the most optimized set of rectangles, the operations to work with these kinds of
+ * regions are provably efficient:  This design trades space for time.
+ * 
+ * As a rather nice side-effect of the design, calls to getRects() will always result in a set
+ * of rectangles that go from top-to-bottom, left-to-right on the screen, which can be beneficial
+ * in some rendering scenarios.
+ * 
+ * This implementation also has performance optimizations to avoid combining regions when the
+ * operations are meaningless or would result in the empty set, and there are various kinds of
+ * boundary checks to early-out operations wherever possible.
+ */
+const Region2D = (function() {
 
-	var
+	let infinite, empty;
+
+	const
 
 	//---------------------------------------------------------------------------------------------
 	// Global constants.
@@ -11,7 +64,18 @@ var Region = (function() {
 	nInf = Number.NEGATIVE_INFINITY,
 
 	//---------------------------------------------------------------------------------------------
-	// Miscellaneous helper functions.
+	// Helper functions.
+
+	/**
+	 * Construct a wrapper around the given private data that makes it opaque except for 
+	 * those with access to the 'expectedKey'.
+	 */
+	makeProtectedData = function(protectedData, expectedKey) {
+		return function(actualKey) {
+			if (actualKey === expectedKey) return protectedData;
+			else throw "Illegal access";
+		};
+	},
 
 	/**
 	 * Determine if the given object is an array. This is provided in newer JavaScript environs,
@@ -23,39 +87,206 @@ var Region = (function() {
 	},
 
 	//---------------------------------------------------------------------------------------------
-	// Row splitting/joining.
-	
+	// Region internals.
+
 	/**
-	 * This spins over the provided set of rows, and where subsequent rows match
-	 * horizontal coordinates and have adjacent min/max edges, it mashes them
-	 * together into a combined single row.  This will not alter the input data.
+	 * Make a 'generator' function that, upon each invocation, will return the next
+	 * pair of rows that need to be combined, as the form { row1:, row2:, minY:, maxY: },
+	 * where row1 and row2 are the original Region1D objects, and minY and maxY should
+	 * be the Y coordinates of the resulting combined row.  This is actually a lot simpler
+	 * than it looks, but many separate cases need to be handled.
+	 * 
+	 * On each separate invocation, the generator will return a new pair object until it
+	 * runs out of source rows, and then it will return null.
 	 */
-	mergeRows = function(rows) {
-		var newRows = [];
-		if (rows.length <= 0) return newRows;
-		
-		// Copy the first row verbatim.
-		var prevRow = rows[0].clone();
-		newRows.push(prevRow);
-		
-		for (var i = 1, l = rows.length; i < l; i++) {
-			if (prevRow.maxY == rows[i].minY && prevRow.matches(rows[i])) {
-				// Identical to previous row, except for height; so expand the
-				// previous row.
-				prevRow.maxY = rows[i].maxY;
+	makeRowPairGenerator = function(rows1, rows2) {
+		let rowIndex1 = 0;
+		let rowIndex2 = 0;
+		let lastY = nInf;
+		let empty = Region1D.empty;
+
+		return function() {
+
+			//-------------------------------------------------------------------------------------
+			// Step 1.  First, see if we've run out of data in either set.
+
+			if (rowIndex1 >= rows1.length) {
+				// No more left in rows1, so just take whatever's left of rows2.
+				if (rowIndex2 >= rows2.length)
+					return null;
+				else {
+					const result = {
+						row1: empty, row2: rows2[rowIndex2].region,
+						minY: Math.max(rows2[rowIndex2].minY, lastY), maxY: (lastY = rows2[rowIndex2].maxY)
+					};
+					rowIndex2++;
+					return result;
+				}
+			}
+			else if (rowIndex2 >= rows2.length) {
+				// No more left in rows2, so just take whatever's left of rows1.
+				const result = {
+					row1: rows1[rowIndex1].region, row2: empty,
+					minY: Math.max(rows1[rowIndex1].minY, lastY), maxY: (lastY = rows1[rowIndex1].maxY)
+				};
+				rowIndex1++;
+				return result;
 			}
 			else {
-				// Different rows, so just copy the next row to the output.
-				prevRow = rows[i].clone();
-				newRows.push(prevRow);
+				// We have remaining rows in both rows1 and rows2, so now we need
+				// to do the general case.
 			}
-		}
 
-		return newRows;
+			//-------------------------------------------------------------------------------------
+			// Step 2. Extract out the next row pair.  This is a somewhat-straightforward
+			//   decision-tree approach, and is very fast, but since there are many possible
+			//   cases, there are a lot of conditionals below to test for all of them.
+
+			const row1 = rows1[rowIndex1];
+			const row2 = rows2[rowIndex2];
+			const nextY1 = Math.max(row1.minY, lastY);
+			const nextY2 = Math.max(row2.minY, lastY);
+
+			let da, db, minY, maxY;
+
+			if (nextY1 === nextY2) {
+				// The A-side and B-side rows having a matching top edge.
+				minY = nextY1;
+
+				// These match the first half of the conditionals described below.
+				da = row1.region, db = row2.region;
+				if (row2.maxY < row1.maxY) {
+					lastY = maxY = row2.maxY;
+					rowIndex2++;
+				}
+				else if (row2.maxY === row1.maxY) {
+					lastY = maxY = row1.maxY;
+					rowIndex1++, rowIndex2++;
+				}
+				else {
+					lastY = maxY = row1.maxY;
+					rowIndex1++;
+				}
+			}
+			else if (nextY1 < nextY2) {
+				// The A-side row is strictly above the B-side row.
+				minY = nextY1;
+
+				// These match the second half of the conditionals described below.
+				da = row1.region, db = empty;
+				if (nextY2 >= row1.maxY) {
+					lastY = maxY = row1.maxY;
+					rowIndex1++;
+				}
+				else {
+					lastY = maxY = nextY2;
+				}
+			}
+			else {
+				// The B-side row is strictly above the A-side row.
+				minY = nextY2;
+
+				// These match the second half of the conditionals described below, inverted.
+				da = empty, db = row2.region;
+				if (nextY1 >= row2.maxY) {
+					lastY = maxY = row2.maxY;
+					rowIndex2++;
+				}
+				else {
+					lastY = maxY = nextY1;
+				}
+			}
+
+			//-------------------------------------------------------------------------------------
+			// Step 3. Emit the result for this row pair.
+
+			const result = {
+				row1: da, row2: db,
+				minY: minY, maxY: maxY
+			};
+			return result;
+
+			/*
+				//-------------------------------------------------------------------------------------
+				// Step 2, in detail.  Both sides follow the same basic algorithm, as
+				// explained below:
+				//
+				// Find the maxY, and iterate whichever side is the next one that requires
+				// iteration (possibly both).
+
+				if (ay === by) {
+					// Top edges are equal, so we're consuming part or all of both rows.
+					//
+					// Case 1.  +-------+   +-------+   <--- top equal
+					//          |   a   |   |   b   |
+
+					// Three possibilities:  rb.maxY is above, equal to, or below ra.maxY.
+					if (rb.maxY < ra.maxY) {
+						// Case 1a.  +-------+   +-------+   <--- top equal
+						//           |   a   |   |   b   |
+						//           |       |   +-------+   <--- bottom above
+						//           +-------+
+						// Consume all of rb, but only the top part of ra.
+						lastY = maxY = rb.maxY;
+						da = ra.region;
+						db = rb.region;
+						ib++;
+					}
+					else if (rb.maxY === ra.maxY) {
+						// Case 1b.  +-------+   +-------+   <--- top equal
+						//           |   a   |   |   b   |
+						//           +-------+   +-------+   <--- bottom equal
+						// Consume both ra and rb.
+						lastY = maxY = ra.maxY;
+						da = ra.region;
+						db = rb.region;
+						ia++;
+						ib++;
+					}
+					else {
+						// Case 1c.  +-------+   +-------+   <--- top equal
+						//           |   a   |   |   b   |
+						//           +-------+   |       |
+						//                       +-------+   <--- bottom below
+						// Consume all of ra, but only the top part of rb.
+						lastY = maxY = ra.maxY;
+						da = ra.region;
+						db = rb.region;
+						ia++;
+					}
+				}
+				else if (by >= ra.maxY) {
+					// Degenerate case:  by is past ra.maxY, so there
+					// is no overlap at all.
+					//
+					// Case 2.  +-------+   
+					//          |   a   |
+					//          +-------+
+					//                      +-------+   <--- top entirely below a
+					//                      |   b   |
+					//                      +-------+
+					// Consume all of ra, and none of rb.
+					lastY = maxY = ra.maxY;
+					da = ra.region;
+					db = empty;
+					ia++;
+				}
+				else {
+					// Top edge of rb is below the top edge of ra, but there's definitely
+					// overlap.  So we now need to decide how much overlap.
+					//
+					// Case 3.  +-------+   
+					//          |   a   |   +-------+   <--- top below
+					//          |       |   |   b   |
+					//
+					// Consume the next part of ra through by, but none of rb.
+					lastY = maxY = by;
+					da = ra.region;
+					db = empty;
+				}
+			*/
+		};
 	},
-	
-	//---------------------------------------------------------------------------------------------
-	// Region internals.
 
 	/**
 	 * Combine two regions together, returning a new region that is the result of having
@@ -69,369 +300,423 @@ var Region = (function() {
 	 *   - We don't add a row that is identical to the previous row; we expand the previous row.
 	 *   - We don't add empty rows at all.
 	 *   - We do track the boundary min/max X coordinates as we go.
-	 *   - We compute the overall region checksum as we go.
+	 *   - We compute the overall region hash as we go.
 	 *   - We only compute the boundary min/max Y coordinates after all rows are added.
 	 *
 	 * Neither input region may be empty.
 	 *
 	 * The result is always a valid region if the two input regions are valid regions.
 	 */
-	combineInternal = function(r1, r2, rowTransform) {
-		var rows1 = r1._rows, rows2 = r2._rows;
-		var rowIndex1 = 0, rowIndex2 = 0;
-		var y = null;
-		
-		var getNextRowPair = function() {
-			if (y === null) {
-				// Degenerate case:  First output row.
-				y = rows1[0].minY;
-				if (rows2[0].minY < y) y = rows2[0].minY;
-				return {
-					minY: y,
-					maxY: rows1[0].maxY < rows2[0].maxY ? rows1[0].maxY : rows2[0].maxY,
-					row1: rows1[0],
-					row2: rows2[0]
-				};
+	combineData = function(array1, array2, rowTransform) {
+
+		// Make the generator that spits out pairs of rows to combine.
+		const pairGenerator = makeRowPairGenerator(array1, array2);
+
+		// Spin over all the pairs of input rows, and combine them together to produce
+		// the output region.
+		let lastResult = null;
+		const result = [];
+		let minX = pInf, maxX = nInf;
+		let hash = 0;
+		let count = 0;
+		for (let pair; pair = pairGenerator(); ) {
+
+			// Perform the 1-dimensional version of the transform.
+			const resultRow = rowTransform(pair.row1, pair.row2);
+
+			// If the result is empty, we don't add it.
+			if (resultRow.isEmpty())
+				continue;
+
+			// If the result is the same as the previous row's result, and they're immediately
+			// adjacent, then just expand the previous row: Don't add a new one.
+			if (lastResult && resultRow.equals(lastResult.region) && lastResult.maxY == pair.minY) {
+				lastResult.maxY = pair.maxY;
+				continue;
 			}
-			else {
-				// General case: Somewhere in the middle, and we need to move
-				// to the next output row.
-				
-				// Step 1. Find the next minimum 'y' value.
-				
-				// Step 2. If it's the start of both rows, take them both as if it's the first output row again.
-				//         If it's the start of only one row, and that row start lies inside the row next to it.
-			}
+
+			// New result row, and it's valid content, so add it to the result.
+			result.push(lastResult = {
+				region: resultRow,
+				minY: pair.minY,
+				maxY: pair.maxY,
+			});
+
+			// Update the rectangle count.
+			count += resultRow.getCount();
+
+			// Update the minima and maxima for this 2-D region based on the new row.
+			const rowBounds = resultRow.getBounds();
+			if (rowBounds.min < minX) minX = rowBounds.min;
+			if (rowBounds.max > maxX) maxX = rowBounds.max;
+
+			// Update the hash (checksum) for the 2-D region based on the 1-D row hash.
+			hash *= 23;
+			hash += resultRow.getHashCode() | 0;
+			hash &= ~0;
+		}
+
+		// Finally, generate the 2-D region data itself.
+		const newRegionData = {
+			array: result,
+			count: count,
+			minX: minX,
+			minY: result.length ? result[0].minY : pInf,
+			maxX: maxX,
+			maxY: result.length ? result[result.length-1].maxY : nInf,
+			hash: hash
 		};
+		return newRegionData;
 	},
 	
 	/**
-	 * Union the two regions together, returning a new region that is the result of having
-	 * combined them.
+	 * Calculate the union of the given arrays of 2-D region data.
+	 * Returns a new array that contains the 2-D union.
 	 */
-	unionInternal = function(r1, r2) {
-		if (isEmpty(r1)) return r2;
-		if (isEmpty(r2)) return r1;
-		return combineInternal(r1, r2, function(row1, row2) { return row1.union(row2); });
-	},
+	unionData = (array1, array2) => combineData(array1, array2, (r1, r2) => r1.union(r2)),
 
 	/**
-	 * Intersect the two regions together, returning a new region that is the result of having
-	 * combined them.
+	 * Calculate the intersection of the given arrays of 2-D region data.
+	 * Returns a new array that contains the 2-D intersection.
 	 */
-	intersectInternal = function(r1, r2) {
-		if (!doBoundsOverlap(r1, r2) || isEmpty(r1) || isEmpty(r2))
-			return new region();
-		return combineInternal(r1, r2, function(row1, row2) { return row1.intersect(row2); });
-	},
+	intersectData = (array1, array2) => combineData(array1, array2, (r1, r2) => r1.intersect(r2)),
 
 	/**
-	 * Subtract the second region from the first, returning a new region that is the result
-	 * of having combined them.
+	 * Calculate the exclusive-or of the given arrays of 2-D region data.
+	 * Returns a new array that contains the 2-D exclusive-or.
 	 */
-	subtractInternal = function(r1, r2) {
-		if (!doBoundsOverlap(r1, r2) || isEmpty(r1) || isEmpty(r2))
-			return r1;
-		return combineInternal(r1, r2, function(row1, row2) { return row1.subtract(row2); });
-	},
+	xorData = (array1, array2) => combineData(array1, array2, (r1, r2) => r1.xor(r2)),
 
 	/**
-	 * Exclusive-or the two regions together, returning a new region that is the result of
-	 * having combined them.
+	 * Calculate the difference of the given arrays of 2-D region data.
+	 * Returns a new array that contains the 2-D difference.
 	 */
-	xorInternal = function(r1, r2) {
-		if (isEmpty(r1)) return r2;
-		if (isEmpty(r2)) return r1;
-		return combineInternal(r1, r2, function(row1, row2) { return row1.xor(row2); });
-	},
+	subtractData = (array1, array2) => combineData(array1, array2, (r1, r2) => r1.subtract(r2)),
 	
 	/**
 	 * Determine if the bounding rectangles of each region actually overlap.  If they
 	 * don't overlap, we can often treat region operations as special degenerate cases.
 	 * This runs in O(1) time.
 	 */
-	doBoundsOverlap = function(r1, r2) {
-		return !(r1._bounds.minX > r2._bounds.maxX
-			|| r1._bounds.maxX < r2._bounds.minX
-			|| r1._bounds.minY > r2._bounds.maxY
-			|| r1._bounds.maxY < r2._bounds.minY);
+	doBoundsOverlap = function(data1, data2) {
+		return !(data1.minX > data2.maxX
+			|| data1.maxX < data2.minX
+			|| data1.minY > data2.maxY
+			|| data1.maxY < data2.minY);
 	},
 	
 	/**
-	 * This helper method allows a row to be quickly found using a Y coordinate.
-	 * It returns the index of the row that contains that Y coordinate, or -1 if the
-	 * Y coordinate is not in any row.  This runs in O(lg n) time.
+	 * Make region data from a single rectangle, in one of the three major rectangle forms:
+	 *     - An object with { x:, y:, width:, height: } properties.
+	 *     - An object with { left:, top:, right:, bottom: } properties.
+	 *     - An array with [x, y, width, height] values.
+	 * 
+	 * This is fairly straightforward, and runs in O(1) time.
 	 */
-	findIndexOfRowContainingY = function(region, y) {
-		// Quick bounds check.
-		if (y < region._bounds.minY || y > region._bounds.maxY) return -1;
-		
-		var rows = region._rows;
+	makeRegionDataFromOneRect = function(rect) {
 
-		if (rows.length <= 5) {
-			// For relatively few rows, linear search wins for performance.
-			for (var i = 0, l = rows.length; i < l; i++) {
-				var row = rows[i];
-				if (row.minY <= y && y < row.maxY) return i;
+		// Calculate the actual rectangle coordinates from whatever object was passed in.
+		let minX, maxX, minY, maxY;
+		if (isArray(rect)) {
+			if (rect.length !== 4) {
+				console.error("Cannot construct a Region2D; invalid rectangle data.");
+				throw "Data error";
 			}
+			minX = Number(rect[0]), minY = Number(rect[1]);
+			maxX = Number(rect[2]), maxY = Number(rect[3]);
+		}
+		else if ("left" in rect) {
+			minX = Number(rect.left), minY = Number(rect.top);
+			maxX = Number(rect.right), maxY = Number(rect.bottom);
 		}
 		else {
-			// For many rows, binary search wins for performance.
-			var start = 0, end = rows.length;
-			while (start < end) {
-				var midpt = (start + end) >> 1;	// Divide by two, but round down, and quickly.
-				var row = rows[midpt];
-				if (y < row.minY) {
-					// Before this row.
-					end = midpt;
-				}
-				else if (y >= row.maxY) {
-					// After this row.
-					start = midpt + 1;
-				}
-				else {
-					// It's inside this row.
-					return midpt;
-				}
-			}
+			minX = Number(rect.x), minY = Number(rect.y);
+			maxX = minX + Number(rect.width), maxY = minY + Number(rect.height);
 		}
 
-		return -1;
+		// Validate the rectangle data.
+		if (maxX <= minX || maxY <= minY) {
+			console.error("Cannot construct a Region2D from a rectangle of zero or negative size.");
+			throw "Data error";
+		}
+
+		// Construct the new row containing that rectangle.
+		const region1D = new Region1D([minX, maxX]);
+
+		// Now make the actual region data for this single-rect region.
+		const data = {
+			array: [ {
+				region: region1D,
+				minY: minY,
+				maxY: maxY
+			} ],
+			count: 1,
+			minX: minX,
+			minY: minY,
+			maxX: maxX,
+			maxY: maxY,
+			hash: region1D.getHashCode()
+		};
+
+		return data;
 	},
-	
+
 	/**
-	 * Make a region from a single rectangle, in canonical form.  This is straightforward, and runs in O(1) time.
+	 * Construct an empty region consisting of no rectangles at all.
 	 */
-	makeRegionFromOneRect = function(region, rect) {
-		var point = rect.point;
-		var size = rect.size;
-		region._rows = [ new regionRow([point.x, point.x+size.width], point.y, point.y+size.height) ];
-		region._bounds = { minX: point.x, minY: point.y, maxX: point.x+size.width, maxY: point.y+size.height };
-		region._checksum = region._rows[0].checksum;
+	makeEmptyRegionData = function() {
+		return {
+			array: [ ],
+			count: 0,
+			minX: pInf,
+			minY: pInf,
+			maxX: nInf,
+			maxY: nInf,
+			hash: 0
+		};
 	},
 
 	/**
 	 * Create a simple rectangle from the given region's internal bounding rect.
 	 */
-	getBoundsInternal = function(region) {
-		var bounds = region._bounds;
-
+	getBoundsFromData = function(data) {
 		return {
-			x: bounds.minX,
-			y: bounds.minY,
-			width: bounds.maxX - bounds.minX,
-			height: bounds.maxY - bounds.minY
+			x: data.minX,
+			y: data.minY,
+			width: data.maxX - data.minX,
+			height: data.maxY - data.minY,
+			left: data.minX,
+			top: data.minY,
+			right: data.maxX,
+			bottom: data.maxY
 		};
 	},
 
-	//---------------------------------------------------------------------------------------------
-	// Argument parsing, validation, and canonicalization.
-
 	/**
-	 * Cause the parse to fail, and raise an error message.
+	 * Get all of the rectangle data for this entire region.
 	 */
-	parseFail = function() {
-		throw "Region data parsing fail.";
-		console.warn("Cannot process rectangle data; it is not provided in a known format.");
+	makeRects = function(array) {
+		const result = [];
+		for (let i = 0, l = array.length; i < l; i++) {
+			const row = array[i];
+			row.region.getAsRects(row.minY, row.maxY, result);
+		}
+		return result;
 	},
 
 	/**
-	 * Parse an object as a size.  The object must either be a two-valued array, or an object
-	 * with 'width' and 'height' properties.  Returns the size as the form { width:, height: }.
+	 * Determine whether this region stretches to infinity in any direction.
 	 */
-	parseSizeObj = function(obj) {
-		if (isArray(obj)) {
-			if (obj.length != 2) parseFail();
-			return { width: obj[0], height: obj[1] };
-		}
-		else {
-			if (!('width' in obj && 'height' in obj)) parseFail();
-			if (typeof obj.width !== 'number' || typeof obj.height !== 'number') parseFail();
-			return { width: obj.width, height: obj.height };
-		}
-	},
-
-	/**
-	 * Parse one canonical size object from the provided input stream, in all supported formats.
-	 * Returns a new size of the form { width:, height: }.
-	 */
-	parseSize = function(args, indexContainer) {
-		if (typeof args[indexContainer.index] === 'object')
-			return parseSizeObj(args[indexContainer.index++]);
-		}
-		else {
-			if (indexContainer.index > args.length-2)
-				parseFail();
-			var width = args[indexContainer.index++];
-			var height = args[indexContainer.index++];
-			return { width: width, height: height };
-		}
-	},
-
-	/**
-	 * Parse an object as a point.  The object must either be a two-valued array, or an object
-	 * with 'x' and 'y' properties.  Returns the point as the form { x:, y: }.
-	 */
-	parsePointObj = function(obj) {
-		if (isArray(obj)) {
-			if (obj.length != 2) parseFail();
-			return { x: obj[0], y: obj[1] };
-		}
-		else {
-			if (!('x' in obj && 'y' in obj)) parseFail();
-			if (typeof obj.x !== 'number' || typeof obj.y !== 'number') parseFail();
-			return { x: obj.x, y: obj.y };
-		}
+	isInfinite = function(data) {
+		return data.minX === nInf || data.minY === nInf
+			|| data.maxX === pInf || data.maxY === pInf;
 	},
 	
 	/**
-	 * Parse one canonical point object from the provided input stream, in all supported formats.
-	 * Returns a new point of the form { x:, y: }.
+	 * Compare the Region1D data found in each array instance to each other for equality.
 	 */
-	parsePoint = function(args, indexContainer) {
-		if (typeof args[indexContainer.index] === 'object')
-			return parsePointObj(args[indexContainer.index++]);
+	arrayEquals = function(array1, array2) {
+		if (array1.length != array2.length) return false;
+		for (let i = 0, l = array1.length; i < l; i++) {
+			if (!array1[i].equals(array2[i])) return false;
 		}
-		else {
-			if (indexContainer.index > args.length-2)
-				parseFail();
-			var x = args[indexContainer.index++];
-			var y = args[indexContainer.index++];
-			return { x: x, y: y };
-		}
-	},
-	
-	/**
-	 * Parse one canonical rectangle object from the provided input stream, in all supported formats.
-	 * Returns a new rectangle of the form { point:, size: }.
-	 */
-	parseRect = function(args, indexContainer) {
-		if (indexContainer.index > args.length-1)
-			parseFail();
-		else if (isArray(args[indexContainer.index])) {
-			var array = args[indexContainer.index++];
-			var arrayIndexContainer = { index: 0 };
-			var point = parsePoint(array, arrayIndexContainer);
-			var size = parseSize(array, arrayIndexContainer);
-			if (arrayIndexContainer.index != array.length)
-				parseFail();
-			return { point: point, size: size };
-		}
-		else if (typeof args[indexContainer.index] === 'object') {
-			var obj = args[indexContainer.index++];
-			var point = 'point' in obj ? parsePointObj(obj.point)
-				: 'x' in obj && typeof obj.x === 'number'
-					&& 'y' in obj && typeof obj.y === 'number' ? { x: obj.x, y: obj.y }
-				: parseFail();
-			var size = 'size' in obj ? parseSizeObj(obj.size)
-				: 'width' in obj && typeof obj.width === 'number'
-					&& 'height' in obj && typeof obj.height === 'number' ? { size: obj.size, height: obj.height }
-				: parseFail();
-			return { point: point, size: size };
-		}
-		else {
-			var point = parsePoint(args, indexContainer);
-			var size = parseSize(args, indexContainer);
-			return { point: point, size: size };
-		}
+		return true;
 	},
 
 	/**
-	 * Given an arbitrary pile of objects and numbers and arrays, attempt to parse
-	 * it as a sequence of rectangle data in all of the various supported data forms.
-	 *
-	 * A rectangle is any one of:
-	 *   - An array containing a point followed by a size.
-	 *   - An object containing a 'point' (array or obj), or 'x'/'y' numbers;
-	 *       and a 'size' (array or obj), or 'width'/'height' numbers.
-	 *   - A point followed by a size.
-	 *
-	 * A point is any one of:
-	 *   - An array containing two numbers.
-	 *   - An object containing an 'x' and a 'y'.
-	 *   - A number followed by a number.
-	 *
-	 * A size is any one of:
-	 *   - An array containing two numbers.
-	 *   - An object containing a 'width' and a 'height'.
-	 *   - A number followed by a number.
-	 *
-	 * Because the definition allows almost any of the most common representations to
-	 * be valid, we use a recursive-descent parser to transform the input into 
+	 * Determine if the data of region1 intersects the data of region2, and do so more efficiently
+	 * than simply performing "!a.intersect(b).isEmpty()".
 	 */
-	parseRects = function(args) {
+	doesIntersectData = function(data1, data2) {
+		// TODO: Implement this better than the quick-and-dirty solution below.  Ideally,
+		//    this should just test the data and early-out on the first hit, rather than
+		//    actually *doing* all the work and then discarding the result.
+		return !!intersectData(data1.array, data2.array).array.length;
+	},
 
-		var indexContainer = { index: 0 };
-		var rects = [];
-		while (indexContainer.index < args.length) {
-			rects.push(parseRect(args, indexContainer));
-		}
+	/**
+	 * Determine if the given point lies within the given region data.  This first performs
+	 * some easy boundary checks, then efficiently finds the matching row (if any), and then
+	 * invokes Region1D.isPointIn() to efficiently answer the question for real.  This runs in
+	 * O(lg n) time, where 'n' is the number of rectangles in the region.
+	 */
+	isPointInData = function(data, x, y) {
+		const array = data.array;
+
+		// It can't be in the empty set.
+		if (!array.length) return false;
 		
-		return rects;
+		// If it's outside the bounds, it's definitely not in.
+		if (y < data.minY || y > data.maxY
+			|| x < data.minX || x > data.maxX) return false;
+		
+		if (array.length <= 5) {
+			// Spin over all the rows in a simple linear search.
+			for (let i = 0, l = array.length; i < l; i += 2) {
+				if (y >= array[i].minY && y < array[i].maxY) {
+					// Found the row.
+					return array[i].region.isPointIn(x);
+				}
+			}
+			return false;
+		}
+		else {
+			// Binary search to find the row that y is within.
+			let start = 0, end = array.length;
+			while (start < end) {
+				const midpt = ((start + end) / 2) & ~0;
+				const row = array[midpt];
+				if (y >= row.minY && y < row.maxY) {
+					// Found the row, so see if 'x' lies within its spans.
+					return row.region.isPointIn(x);
+				}
+				else if (y < row.minY) {
+					end = midpt;
+				}
+				else {
+					start = midpt + 1;
+				}
+			}
+			return false;
+		}
 	},
-	
+
+	/**
+	 * Check to ensure that the given object is actually a Region2D, and abort if it is not.
+	 */
+	verifyRegion2DType = function(obj) {
+		if (!(obj instanceof Region2D)) {
+			console.error("Object must be a Region2D instance.");
+			throw "Type error";
+		}
+	},
+
 	//---------------------------------------------------------------------------------------------
 	// Public construction interface.
 	
 	/**
-	 * Construct a 2-D region from the given rectangle(s).  This is a proper object,
-	 * with methods for performing operations like union/intersect/subtract/xor.
+	 * A special private object used to flag internal constructions in such a way that
+	 * external callers' data must be validated, but internal data can skip those checks.
 	 */
-	region = function(arguments) {
+	privateKey = {},
 
-		// Parse and validate the provided set of rectangles, however many there may be.
-		var rects = parseRects(arguments);
-		
-		if (rects.length == 0) {
-			// Empty set.
-			this._rows = new regionRow([], pInf, nInf);
-			this._bounds = { minX: pInf, minY: pInf, maxX: nInf, maxY: nInf };
-			this._checksum = 0;
-		}
+	/**
+	 * Access the internal data, if this is an allowed thing to do.
+	 */
+	getData = function(region) {
+		return region._opaque(privateKey);
+	},
 
-		// One or more rectangles.  There are a handful of cases where we could try to
-		// discover that there's no overlap and create the row data directly, but it's
-		// likely not worth the effort in the general case.  So to support the general
-		// case efficiently, we simply make a bunch of regions and union them together.
-		//
-		// In the degenerate case of a single input rectangle, this runs in O(1) time.
-		
-		// Construct the first (only?) rectangle.
-		makeRegionFromOneRect(this, rects[0]);
-		
-		// Union all of the other rectangles to the result (this).
-		var result = this;
-		for (var i = 1, l = rects.length; i < l; i++) {
-			var fakeRegion = {};
-			makeRegionFromOneRect(fakeRegion, rects[i]);
-			result = unionInternal(result, fakeRegion);
-		}
-		
-		// Because regions (and rows) are immutable, it's safe to simply overwrite the
-		// content of this region with the immutable, unioned result.
-		this._rows = result._rows;
-		this._bounds = result._bounds;
-		this._checksum = result._checksum;
+	/**
+	 * Construct a 2-D region either from either nothing or from the given rectangle.
+	 * 
+	 * Usage:
+	 *     var empty = new Region2d();
+	 *     var rectRegion = new Region2d(rect);
+	 * 
+	 * The rectangle may be expressed as any of the following three forms:
+	 *     - An object with { x:, y:, width:, height: } properties.
+	 *     - An object with { left:, top:, right:, bottom: } properties.
+	 *     - An array with [x, y, width, height] values.
+	 * 
+	 * Alternative internal invocation:
+	 *     var region = new Region2d(regionData, privateKey);
+	 */
+	Region2D = function(rect, key) {
+		const data = (key === privateKey) ? rect
+			: (typeof rect !== 'undefined') ? makeRegionDataFromOneRect(rect)
+			: makeEmptyRegionData();
+
+		this._opaque = makeProtectedData(data, privateKey);
 	};
 
 	/**
-	 * Set up the prototype with all of the expected methods on this region, mostly
-	 * just invoking the simple functions that know how to do the work for real.
+	 * The region's prototype contains helpers that simply invoke the private operations
+	 * to do all the hard work.
 	 */
-	region.prototype = {
-		union: function(other) { return unionInternal(this, other); },
-		intersect: function(other) { return intersectInternal(this, other); },
-		subtract: function(other) { return subtractInternal(this, other); },
-		xor: function(other) { return xorInternal(this, other); },
-		not: function() { return notInternal(this); },
-		isEmpty: function() { return !this._rows.length; },
-		isPointInRegion: function(x, y) { return isPointInRegionInternal(this, x, y); },
-		doesIntersect: function(other) { return doesIntersectInternal(this, other); },
-		equals: function(other) { return equalsInternal(this, other); },
-		getBounds: function() { return getBoundsInternal(this); },
-		getRects: function() { return getRectsInternal(this); }
+	Region2D.prototype = {
+		union: function(other) {
+			verifyRegion2DType(other);
+			const data = getData(this), otherData = getData(other);
+			return new Region2D(unionData(data.array, otherData.array), privateKey);
+		},
+		intersect: function(other) {
+			verifyRegion2DType(other);
+			const data = getData(this), otherData = getData(other);
+			if (!doBoundsOverlap(data, otherData))
+				return empty;
+			return new Region2D(intersectData(data.array, otherData.array), privateKey);
+		},
+		subtract: function(other) {
+			verifyRegion2DType(other);
+			const data = getData(this), otherData = getData(other);
+			if (!doBoundsOverlap(data, otherData))
+				return data;
+			return new Region2D(subtractData(data.array, otherData.array), privateKey);
+		},
+		xor: function(other) {
+			verifyRegion2DType(other);
+			const data = getData(this), otherData = getData(other);
+			return new Region2D(xorData(data.array, otherData.array), privateKey);
+		},
+		not: function() {
+			// Lazy implementation of 'not': Simply 'xor' with an infinite region.
+			// A better implementation would take advantage of the efficient Region1d#not() method.
+			const data = getData(this);
+			return new Region2D(xorData(data.array, infinite.array), privateKey);
+		},
+		isEmpty: function() {
+			return !getData(this).array.length;
+		},
+		isInfinite: function() {
+			return isInfinite(getData(this));
+		},
+		isFinite: function() {
+			return !isInfinite(getData(this));
+		},
+		isRectangular: function() {
+			return getData(this).count === 1;
+		},
+		doesIntersect: function(other) {
+			verifyRegion2DType(other);
+			return doesIntersectData(getData(this));
+		},
+		isPointIn: function(x, y) {
+			return isPointInData(getData(this), Number(x), Number(y));
+		},
+		equals: function(other) {
+			verifyRegion2DType(other);
+			const data = getData(this), otherData = getData(other);
+			if (data.hash != otherData.hash
+				|| data.count !== otherData.count) return false;
+			return arrayEquals(data.array, otherData.array);
+		},
+		getCount: function() {
+			return getData(this).count;
+		},
+		getRects: function() {
+			return makeRects(getData(this).array);
+		},
+		getBounds: function() {
+			return getBoundsFromData(getData(this));
+		},
+		getHashCode: function() {
+			return getData(this).hash;
+		}
 	};
-	
-	return region;
 
+	/**
+	 * A reusable infinite instance.
+	 */
+	Region2D.infinite = infinite = new Region2D([nInf, nInf, pInf, pInf]);
+
+	/**
+	 * A reusable empty instance.
+	 */
+	Region2D.empty = empty = new Region2D();
+	
+	return Region2D;
 })();
+
+export default Region2D;
+export { Region1D, Region2D };

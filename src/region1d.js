@@ -1,6 +1,6 @@
 /**
  * Region1D objects are semi-opaque data structures that represent a 1-dimensional
- * region on the number line, described using "spans" of included points.
+ * set on the number line, described using "spans" of included points.
  *
  * ------------------------------------------------------------------------------------------------
  *
@@ -39,7 +39,8 @@
  *   result = a.not();              // Return the logical complement of the set (which may include infinity).
  *   result = a.isEmpty();          // Return true/false if the set is empty.
  *   result = a.isPointIn(x);       // Return true if the given coordinate is contained within the set.
- *   result = a.doesIntersect(b);   // Return true if the logical intersection of the two sets is nonempty.
+ *   result = a.doesIntersect(b);   // Return true if the logical intersection of the two sets is nonempty.  This is
+ *                                  //   more efficient than performing "!a.intersect(b).isEmpty()".
  *   result = a.equals(b);          // Return true if the sets are identical.
  *   result = a.getBounds(b);       // Return { min:, max: } of the Region1D.
  *   result = a.getAsRects(minY, maxY); // Return an array of { x:, y:, width:, height: } rectangles describing the Region1D.
@@ -239,7 +240,7 @@ const Region1D = (function() {
 	 */
 	isPointInData = function(array, x) {
 		// It can't be in the empty set.
-		if (!array.length || typeof x !== 'number') return false;
+		if (!array.length) return false;
 		
 		// If it's outside the bounds, it's not anywhere within any of the spans.
 		if (x < array[0] || x > array[array.length - 1]) return false;
@@ -329,8 +330,7 @@ const Region1D = (function() {
 	 *
 	 * Returns a new array that contains rectangles of the form { x:, y:, width:, height:, left:, top:, right:, bottom: }.
 	 */
-	makeRects = function(array, minY, maxY) {
-		const result = [];
+	makeRects = function(array, minY, maxY, result) {
 		const height = maxY - minY;
 		
 		for (let i = 0, l = array.length; i < l; i += 2) {
@@ -359,17 +359,17 @@ const Region1D = (function() {
 	},
 
 	/**
-	 * Calculate a checksum that (loosely) describes the given Region1D of data, so that we
+	 * Calculate a hash that (loosely) describes the given Region1D of data, so that we
 	 * can readily tell whether it is different from another.
 	 */
-	makeChecksum = function(array) {
-		let checksum = 0;
+	makeHashCode = function(array) {
+		let hash = 0;
 		for (let i = 0, l = array.length; i < l; i++) {
-			checksum *= 23;
-			checksum += array[i] | 0;
-			checksum &= ~0;
+			hash *= 23;
+			hash += array[i] | 0;
+			hash &= ~0;
 		}
-		return checksum;
+		return hash;
 	},
 	
 	/**
@@ -435,6 +435,13 @@ const Region1D = (function() {
 	privateKey = {},
 
 	/**
+	 * Access the internal data, if this is an allowed thing to do.
+	 */
+	getData = function(region) {
+		return region._opaque(privateKey);
+	},
+
+	/**
 	 * Construct a 1-D region from the given array of start/end X coordinates.  This is a
 	 * proper object, with prototype methods for performing operations like
 	 * union/intersect/subtract/xor.
@@ -444,39 +451,32 @@ const Region1D = (function() {
 	 * @param array {Array} - The array of span endpoints, in pairs of start (inclusive)
 	 *        and end (exclusive) X-coordinates.
 	 */
-	Region1D = function(array, key, checksum) {
+	Region1D = function(array, key, hash) {
 	
 		// Internal-only second parameter: A 'key' flag, indicating this data came from an
 		// internal operation and does not require validation for correctness.
 		if (key === privateKey) {
 		
-			// Internal-only third parameter: A checksum for comparisons.
-			if (typeof checksum !== 'number')
-				checksum = makeChecksum(array);
+			// Internal-only third parameter: A hash for comparisons.
+			if (typeof hash !== 'number')
+				hash = makeHashCode(array);
 		}
-		else if (typeof key !== 'undefined' || typeof checksum !== 'undefined') {
+		else if (typeof key !== 'undefined' || typeof hash !== 'undefined') {
 			// You're not allowed to specify a key unless it's the right one.
 			throw "Illegal access";
 		}
 		else {
 			// Verify that the user passed us data that makes sense.
 			validateData(array);
-			checksum = makeChecksum(array);
+			hash = makeHashCode(array);
 		}
 
 		this._opaque = makeProtectedData({
 			array: array,
 			min: array.length ? array[0] : pInf,
 			max: array.length ? array[array.length - 1] : nInf,
-			checksum: checksum
+			hash: hash
 		}, privateKey);
-	};
-
-	/**
-	 * Access the internal data, if this is an allowed thing to do.
-	 */
-	const getData = function(region) {
-		return region._opaque(privateKey);
 	};
 	
 	/**
@@ -511,6 +511,9 @@ const Region1D = (function() {
 		isEmpty: function() {
 			return !getData(this).array.length;
 		},
+		getCount: function() {
+			return getData(this).array.length >> 1;
+		},
 		doesIntersect: function(other) {
 			verifyRegion1DType(other);
 			return doesIntersectData(getData(this).array, getData(other).array);
@@ -521,20 +524,23 @@ const Region1D = (function() {
 		equals: function(other) {
 			verifyRegion1DType(other);
 			const data = getData(this), otherData = getData(other);
-			if (data.checksum != otherData.checksum) return false;
+			if (data.hash != otherData.hash) return false;
 			return arrayEquals(data.array, otherData.array);
 		},
 		getRawSpans: function() {
 			const data = getData(this);
 			return makeRawSpans(data.array);
 		},
-		getAsRects: function(minY, maxY) {
+		getAsRects: function(minY, maxY, destArray) {
 			const data = getData(this);
-			return makeRects(data.array, minY, maxY);
+			return makeRects(data.array, minY, maxY, destArray || []);
 		},
 		getBounds: function() {
 			const data = getData(this);
 			return { min: data.min, max: data.max };
+		},
+		getHashCode: function() {
+			return getData(this).hash;
 		}
 	};
 
@@ -545,7 +551,4 @@ const Region1D = (function() {
 
 })();
 
-// Export it for use in Node-type environments.
-if (typeof exports !== 'undefined') {
-	exports.Region1D = Region1D;
-}
+export default Region1D;
