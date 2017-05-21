@@ -1,7 +1,7 @@
 
 var assert = require('assert');
 
-var Region2D = require('../lib/region2d.debug.js').Region2D;
+var Region2D = require('../lib/region2d.debug.js').default;
 
 var
 	/**
@@ -257,7 +257,7 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
-	// #union()
+	// #intersect()
 
 	describe('#intersect()', function() {
 		it('can combine two rectangular regions, with an above/below relationship', function() {
@@ -420,6 +420,172 @@ describe('Region2D', function() {
 			var bar = lShape.intersect(y);
 			assert.deepEqual(bar.getRects(), makeRects([
 				2, 5, 3, 8
+			]));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #subtract()
+
+	describe('#subtract()', function() {
+		it('can combine two rectangular regions, with an above/below relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 ****
+			// 5 ****
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 6, 5, 8
+			]));
+
+			// Inverted case.
+			var result = b.subtract(a);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4
+			]));
+		});
+
+		it('can combine two rectangular regions, with a left/right relationship', function() {
+			//   1234567
+			// 1
+			// 2 AA**BB
+			// 3 AA**BB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6
+			// 7
+			// 8
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 2, 7, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 3, 6
+			]));
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				5, 2, 7, 6
+			]));
+		});
+
+		it('can combine two rectangular regions, with an above-left relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var a = new Region2D([3, 4, 7, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				5, 4, 7, 6,
+				3, 6, 7, 8
+			]));
+
+			// Invert them.
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 4, 7, 8]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 4, 3, 6
+			]));
+		});
+
+		it('can combine two rectangular regions, with an above-right relationship', function() {
+			//   1234567
+			// 1
+			// 2   BBBB
+			// 3   BBBB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([3, 2, 7, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 4, 3, 6,
+				1, 6, 5, 8
+			]));
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 4, 5, 8]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				3, 2, 7, 4,
+				5, 4, 7, 6,
+			]));
+		});
+
+		it('should remove one of a pair of disconnected rectangular regions', function() {
+			//   12345678
+			// 1
+			// 2 BBB
+			// 3 BBB
+			// 4 BBB AAA
+			// 5 BBB AAA
+			// 6     AAA
+			// 7     AAA
+			// 8
+			var a = new Region2D([5, 4, 8, 8]);
+			var b = new Region2D([1, 2, 4, 6]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				5, 4, 8, 8
+			]));
+
+			// Invert them.
+			var result = b.subtract(a);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 4, 6
+			]));
+		});
+
+		it('can turn a rectangle into a donut, then a C, then an L', function() {
+			//   1234567
+			// 1
+			// 2  AAAAAA
+			// 3  AAABBB*
+			// 4  AA *BB*
+			// 5  AA *BB*
+			// 6  AAABBB*
+			// 7  AAAAAA
+			// 8 
+			var rectangle = new Region2D([2, 2, 8, 8]);
+			var hole = new Region2D([4, 4, 6, 6]);
+			var donut = rectangle.subtract(hole);
+			assert.deepEqual(donut.getRects(), makeRects([
+				2, 2, 8, 4,
+				2, 4, 4, 6,
+				6, 4, 8, 6,
+				2, 6, 8, 8
+			]));
+
+			var b = new Region2D([5, 3, 9, 7]);
+			var cShape = donut.subtract(b);
+			assert.deepEqual(cShape.getRects(), makeRects([
+				2, 2, 8, 3,
+				2, 3, 5, 4,
+				2, 4, 4, 6,
+				2, 6, 5, 7,
+				2, 7, 8, 8,
 			]));
 		});
 	});

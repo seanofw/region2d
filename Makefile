@@ -9,7 +9,7 @@ MOCHA = node_modules/mocha/bin/mocha
 
 RM = rm
 
-all: lib/region1d.js
+all: lib/region1d.js lib/region2d.js
 
 debug: lib/region1d.debug.js lib/region2d.debug.js
 
@@ -17,10 +17,13 @@ clean:
 	$(RM) -rf lib/* imd/*
 
 test: debug
-	$(MOCHA) test/region2d.tests.js
+	$(MOCHA) test/region1d.tests.js test/region2d.tests.js
 
 lib/region1d.js lib/region1d.js.map: imd/src/region1d.js imd/src/region1d.js.map
 	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region1d.js --in-source-map imd/src/region1d.js.map --source-map lib/region1d.js.map -- $<
+
+lib/region2d.js lib/region2d.js.map: imd/src/region2d.js imd/src/region2d.js.map
+	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region2d.js --in-source-map imd/src/region2d.js.map --source-map lib/region2d.js.map -- $<
 
 imd/src/region1d.js: src/region1d.js
 	$(BABEL) $(BABEL_FLAGS) --out-dir imd -- $<

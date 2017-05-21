@@ -1,8 +1,6 @@
 
 var assert = require('assert');
-var regionlib = require('../lib/region.js');
-
-var Region1D = regionlib.Region1D;
+var Region1D = require('../lib/region1d.js').default;
 
 describe('Region1D', function() {
 

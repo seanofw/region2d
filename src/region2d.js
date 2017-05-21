@@ -651,7 +651,7 @@ const Region2D = (function() {
 			verifyRegion2DType(other);
 			const data = getData(this), otherData = getData(other);
 			if (!doBoundsOverlap(data, otherData))
-				return data;
+				return this;
 			return new Region2D(subtractData(data.array, otherData.array), privateKey);
 		},
 		xor: function(other) {
