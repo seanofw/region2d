@@ -18,6 +18,7 @@ export default class Rectangle extends React.Component {
 
 		this.state = { dragging: false, sizing: false, relX: null, relY: null };
 
+		this.timer = null;
 		this.onMouseDown = this.onMouseDown.bind(this);
 		this.onMouseMove = this.onMouseMove.bind(this);
 		this.onMouseUp = this.onMouseUp.bind(this);
@@ -49,38 +50,45 @@ export default class Rectangle extends React.Component {
 		e.preventDefault();
 		if (!this.props.onRectChange) return;
 
-		if (this.state.dragging) {
-			const newPageX = e.pageX - this.state.relX;
-			const newPageY = e.pageY - this.state.relY;
-			const parentClientRect = this.element.parentNode.getBoundingClientRect();
-			const parentPagePoint = { x: parentClientRect.left + window.scrollX, y: parentClientRect.top + window.scrollY };
-			let newX = Math.floor(newPageX - parentPagePoint.x + 0.5);
-			let newY = Math.floor(newPageY - parentPagePoint.y + 0.5);
-			if (newX < 0) newX = 0;
-			if (newY < 0) newY = 0;
-			if (newX > parentClientRect.width - 4 - this.props.width) newX = parentClientRect.width - 4 - this.props.width;
-			if (newY > parentClientRect.height - 4 - this.props.height) newY = parentClientRect.height - 4 - this.props.height;
-			if (newX != this.props.x || newY != this.props.y) {
-				this.props.onRectChange(e, { kind: this.props.kind, name: this.props.name, x: newX, y: newY, width: this.props.width, height: this.props.height });
+		this.trackEvent = { pageX: e.pageX, pageY: e.pageY };
+		if (this.timer)
+			return;
+
+		this.timer = setTimeout(() => {
+			this.timer = null;
+			if (this.state.dragging) {
+				const newPageX = this.trackEvent.pageX - this.state.relX;
+				const newPageY = this.trackEvent.pageY - this.state.relY;
+				const parentClientRect = this.element.parentNode.getBoundingClientRect();
+				const parentPagePoint = { x: parentClientRect.left + window.scrollX, y: parentClientRect.top + window.scrollY };
+				let newX = Math.floor(newPageX - parentPagePoint.x + 0.5);
+				let newY = Math.floor(newPageY - parentPagePoint.y + 0.5);
+				if (newX < 0) newX = 0;
+				if (newY < 0) newY = 0;
+				if (newX > parentClientRect.width - 4 - this.props.width) newX = parentClientRect.width - 4 - this.props.width;
+				if (newY > parentClientRect.height - 4 - this.props.height) newY = parentClientRect.height - 4 - this.props.height;
+				if (newX != this.props.x || newY != this.props.y) {
+					this.props.onRectChange(e, { kind: this.props.kind, name: this.props.name, x: newX, y: newY, width: this.props.width, height: this.props.height });
+				}
 			}
-		}
-		else if (this.state.sizing) {
-			const newPageX = e.pageX + this.state.relX;
-			const newPageY = e.pageY + this.state.relY;
-			const parentClientRect = this.element.parentNode.getBoundingClientRect();
-			const parentPagePoint = { x: parentClientRect.left + window.scrollX, y: parentClientRect.top + window.scrollY };
-			let newX = Math.floor(newPageX - parentPagePoint.x + 0.5);
-			let newY = Math.floor(newPageY - parentPagePoint.y + 0.5);
-			if (newX > parentClientRect.width) newX = parentClientRect.width;
-			if (newY > parentClientRect.height) newY = parentClientRect.height;
-			let newWidth = newX - this.props.x;
-			let newHeight = newY - this.props.y;
-			if (newWidth < 10) newWidth = 10;
-			if (newHeight < 10) newHeight = 10;
-			if (newWidth != this.props.width || newHeight != this.props.height) {
-				this.props.onRectChange(e, { kind: this.props.kind, name: this.props.name, x: this.props.x, y: this.props.y, width: newWidth, height: newHeight });
+			else if (this.state.sizing) {
+				const newPageX = this.trackEvent.pageX + this.state.relX;
+				const newPageY = this.trackEvent.pageY + this.state.relY;
+				const parentClientRect = this.element.parentNode.getBoundingClientRect();
+				const parentPagePoint = { x: parentClientRect.left + window.scrollX, y: parentClientRect.top + window.scrollY };
+				let newX = Math.floor(newPageX - parentPagePoint.x + 0.5);
+				let newY = Math.floor(newPageY - parentPagePoint.y + 0.5);
+				if (newX > parentClientRect.width) newX = parentClientRect.width;
+				if (newY > parentClientRect.height) newY = parentClientRect.height;
+				let newWidth = newX - this.props.x;
+				let newHeight = newY - this.props.y;
+				if (newWidth < 10) newWidth = 10;
+				if (newHeight < 10) newHeight = 10;
+				if (newWidth != this.props.width || newHeight != this.props.height) {
+					this.props.onRectChange(e, { kind: this.props.kind, name: this.props.name, x: this.props.x, y: this.props.y, width: newWidth, height: newHeight });
+				}
 			}
-		}
+		}, 10);
 	}
 
 	onMouseUp(e) {
