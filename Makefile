@@ -1,11 +1,12 @@
 
 BABEL = babel
-BABEL_FLAGS = --presets es2015 --source-maps true
 
 UGLIFY = node_modules/uglifyjs/bin/uglifyjs
 UGLIFY_FLAGS = --mangle --compress
 
 MOCHA = node_modules/mocha/bin/mocha
+
+WEBPACK = webpack
 
 RM = rm
 
@@ -29,10 +30,10 @@ lib/region2d.js lib/region2d.js.map: imd/src/region2d.js imd/src/region2d.js.map
 	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region2d.js --in-source-map imd/src/region2d.js.map --source-map lib/region2d.js.map -- $<
 
 imd/src/region1d.js: src/region1d.js
-	$(BABEL) $(BABEL_FLAGS) --out-dir imd -- $<
+	$(BABEL) --out-dir imd -- $<
 
 imd/src/region2d.js: src/region2d.js
-	$(BABEL) $(BABEL_FLAGS) --out-dir imd -- $<
+	$(BABEL) --out-dir imd -- $<
 
 lib/region1d.debug.js lib/region1d.debug.js.map: imd/src/region1d.js imd/src/region1d.js.map
 	sed -e 's/region1d\.js/region1d\.debug\.js/' imd/src/region1d.js > lib/region1d.debug.js
@@ -41,4 +42,9 @@ lib/region1d.debug.js lib/region1d.debug.js.map: imd/src/region1d.js imd/src/reg
 lib/region2d.debug.js lib/region2d.debug.js.map: imd/src/region2d.js imd/src/region2d.js.map lib/region1d.js
 	sed -e 's/region2d\.js/region2d\.debug\.js/' imd/src/region2d.js > lib/region2d.debug.js
 	cp imd/src/region2d.js.map lib/region2d.debug.js.map
+
+demo: demo/bundle/demo.js
+
+demo/bundle/demo.js: demo/src/demo.js
+	$(WEBPACK)
 

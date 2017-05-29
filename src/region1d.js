@@ -312,6 +312,25 @@ const Region1D = (function() {
 	},
 	
 	/**
+	 * Calculate a new region whose coordinates have all been translated/scaled by the given amounts.
+	 */
+	transformData = function(array, ratio, delta) {
+		delta = Number(delta);
+		if (!(nInf < delta && delta < pInf))	// Catches other NaNs as well as infinities.
+			throw "Invalid translation delta";
+		ratio = Number(ratio);
+		if (!(nInf < ratio && ratio < pInf) || ratio === 0)		// Catches other NaNs as well as infinities.
+			throw "Invalid scale ratio";
+
+		const newArray = [];
+		for (let i = 0, l = array.length; i < l; i++) {
+			newArray[i] = array[i] * ratio + delta;
+		}
+		
+		return newArray;
+	},
+	
+	/**
 	 * Determine if two arrays of (sorted!) 1-D region data are equivalent.
 	 * Returns true if they are the same, false if they are different.
 	 */
@@ -506,6 +525,18 @@ const Region1D = (function() {
 		not: function() {
 			const data = getData(this);
 			return new Region1D(notData(data.array), privateKey);
+		},
+		transform: function(scale, offset) {
+			const data = getData(this);
+			return new Region1D(scaleData(data.array, scale, offset));		// No privateKey forces a data check, since we could have lost precision.
+		},
+		translate: function(offset) {
+			const data = getData(this);
+			return new Region1D(transformData(data.array, 1.0, offset));		// No privateKey forces a data check, since we could have lost precision.
+		},
+		scale: function(scale) {
+			const data = getData(this);
+			return new Region1D(scaleData(data.array, scale, 0));		// No privateKey forces a data check, since we could have lost precision.
 		},
 		isEmpty: function() {
 			return !getData(this).array.length;

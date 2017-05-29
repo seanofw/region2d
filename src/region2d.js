@@ -87,7 +87,7 @@ const Region2D = (function() {
 	},
 
 	//---------------------------------------------------------------------------------------------
-	// Region internals.
+	// Region core internals.
 
 	/**
 	 * Make a 'generator' function that, upon each invocation, will return the next
@@ -392,7 +392,269 @@ const Region2D = (function() {
 	 * Returns a new array that contains the 2-D difference.
 	 */
 	subtractData = (array1, array2) => combineData(array1, array2, (r1, r2) => r1.subtract(r2)),
+
+	//---------------------------------------------------------------------------------------------
+	// Support for generation of paths/windings.
+
+	/**
+	 * Extract the edges of this region.  The edges are fairly-easily extracted from the row data:
+	 * All vertical lines in each row are valid edges, and horizontal lines are valid wherever
+	 * the XOR with the adjacent row is nonempty.
+	 */
+	generateEdges = function(array) {
+		const edges = [];
+
+		if (array.length < 1) {
+			return [];
+		}
+		else if (array.length === 1) {
+			// Degenerate case: Only one row.
+			const spans = array[0].region.getRawSpans();
+			const y1 = array[0].minY;
+			const y2 = array[0].maxY;
+			for (let i = 0; i < spans.length; i += 2) {
+				edges.push({ x1: spans[i], y1: y1, x2: spans[i+1], y2: y1, kind: "top",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i+1], y1: y1, x2: spans[i+1], y2: y2, kind: "right",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i+1], y1: y2, x2: spans[i], y2: y2, kind: "bottom",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i], y1: y2, x2: spans[i], y2: y1, kind: "left",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+			return edges;
+		}
+		else {
+			// Main case: N rows, N > 1
+			
+			// First, emit the top edge(s) and verticals.
+			let spans = array[0].region.getRawSpans();
+			let y1 = array[0].minY;
+			let y2 = array[0].maxY;
+			for (let i = 0; i < spans.length; i += 2) {
+				edges.push({ x1: spans[i], y1: y1, x2: spans[i+1], y2: y1, kind: "top",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i+1], y1: y1, x2: spans[i+1], y2: y2, kind: "right",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i], y1: y2, x2: spans[i], y2: y1, kind: "left",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+
+			// Now handle the interior rows.
+			for (let rowIndex = 1, numRows = array.length; rowIndex < numRows; rowIndex++) {
+
+				y1 = array[rowIndex].minY;
+				y2 = array[rowIndex].maxY;
+
+				if (y1 > array[rowIndex - 1].maxY) {
+					// Emit bottom edges for the previous row verbatim, since it doesn't touch this row.
+					for (let i = 0; i < spans.length; i += 2) {
+						edges.push({ x1: spans[i+1], y1: array[rowIndex-1].maxY, x2: spans[i], y2: array[rowIndex-1].maxY, kind: "bottom",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+
+					// Emit top edges for this row verbatim, since it doesn't touch the previous row.
+					spans = array[rowIndex].region.getRawSpans();
+					for (let i = 0; i < spans.length; i += 2) {
+						edges.push({ x1: spans[i], y1: y1, x2: spans[i+1], y2: y1, kind: "top",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+				}
+				else {
+					// Emit bottom edges for the previous row by subtracting away this row.
+					let interiorEdges = array[rowIndex-1].region.subtract(array[rowIndex].region);
+					spans = interiorEdges.getRawSpans();
+					for (let i = 0; i < spans.length; i += 2) {
+						edges.push({ x1: spans[i+1], y1: y1, x2: spans[i], y2: y1, kind: "bottom",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+
+					// Emit top edges for this row by subtracting away the previous row.
+					interiorEdges = array[rowIndex].region.subtract(array[rowIndex-1].region);
+					spans = interiorEdges.getRawSpans();
+					for (let i = 0; i < spans.length; i += 2) {
+						edges.push({ x1: spans[i], y1: y1, x2: spans[i+1], y2: y1, kind: "top",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+				}
+
+				// Emit verticals everywhere on this row.
+				spans = array[rowIndex].region.getRawSpans();
+				for (let i = 0; i < spans.length; i += 2) {
+					edges.push({ x1: spans[i+1], y1: y1, x2: spans[i+1], y2: y2, kind: "right",
+						key1: null, key2: null, next: null, prev: null, used: false });
+					edges.push({ x1: spans[i], y1: y2, x2: spans[i], y2: y1, kind: "left",
+						key1: null, key2: null, next: null, prev: null, used: false });
+				}
+			}
+
+			// Finally, emit the bottom edge(s) for the last row.
+			for (let i = 0; i < spans.length; i += 2) {
+				edges.push({ x1: spans[i+1], y1: y2, x2: spans[i], y2: y2, kind: "bottom",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+		}
+
+		return edges;
+	},
+
+	/**
+	 * Make a lookup table that finds edges quickly (O(1)) by either endpoint, and set up the
+	 * edges as a linked list so it's easy to quickly (O(1)) find any un-consumed edge.
+	 */
+	makeEdgeTable = function(edges) {
+		const table = {};
+
+		for (let i = 0, l = edges.length; i < l; i++) {
+			const edge = edges[i];
+
+			edge.key1 = (edge.x1 + "," + edge.y1);
+			edge.key2 = (edge.x2 + "," + edge.y2);
+
+			edge.prev = i > 0 ? edges[i-1] : null;
+			edge.next = i < l-1 ? edges[i+1] : null;
+
+			// We only add the 'start' endpoint to the lookup table, because that's
+			// the only point we want to follow to.
+			if (!(edge.key1 in table)) table[edge.key1] = [edge];
+			else table[edge.key1].push(edge);
+		}
+
+		return table;
+	},
+
+	/**
+	 * Make the windings, clockwise polygons that are formed from adjacent edges.
+	 */
+	makeWindings = function(edges, table) {
+		// Algorithm:
+		//
+		// Starting with a top edge, follow its endpoints clockwise until we reach that same
+		// start edge.  Wherever duplicate points are found, prefer following top->right,
+		// right->bottom, bottom->left, and left->top.  Remove each edge from the source set
+		// as we follow it.  When we reach the start edge, if there are edges left, repeat the
+		// same whole algorithm until no edges are left.
+
+		const allWindings = [];
+
+		// This will be the linked-list of all unconsumed edges.
+		let firstEdge = edges[0], lastEdge = edges[edges.length - 1];
+
+		// Consume an edge:  Remove it from the list, and mark it as 'used'.
+		const consumeEdge = function(edge) {
+			if (edge.next)
+				edge.next.prev = edge.prev;
+			else lastEdge = edge.prev;
+
+			if (edge.prev)
+				edge.prev.next = edge.next;
+			else firstEdge = edge.next;
+
+			edge.used = true;
+		};
+
+		// Find the next edge to follow given a set of possible matches.
+		const findBestPossibleEdge = function(edge, possibleEdges) {
+
+			// Easy degenerate case:  If there's only one edge, take it.
+			if (possibleEdges.length === 1 && !possibleEdges.used)
+				return possibleEdges[0];
+
+			// First, prefer following top->right, right->bottom, bottom->left, and left->top,
+			// if there's a matching edge.
+			for (let i = 0, l = possibleEdges.length; i < l; i++) {
+				if (possibleEdges[i].used) continue;
+				switch (edge.kind) {
+					case 'top':
+						if (possibleEdges[i].kind === 'right')
+							return possibleEdges[i];
+						break;
+					case 'right':
+						if (possibleEdges[i].kind === 'bottom')
+							return possibleEdges[i];
+						break;
+					case 'bottom':
+						if (possibleEdges[i].kind === 'left')
+							return possibleEdges[i];
+						break;
+					case 'left':
+						if (possibleEdges[i].kind === 'top')
+							return possibleEdges[i];
+						break;
+				}
+			}
+
+			// We can't follow our preferred direction, so just take whatever's available.
+			for (let i = 0, l = possibleEdges.length; i < l; i++) {
+				if (possibleEdges[i].used) continue;
+				return possibleEdges[i];
+			}
+
+			// Shouldn't get here.
+			throw "Edge generation failure.";
+		};
+
+		// Main loop:  We do this until we run out of edges.  Each iteration of the loop
+		// will generate one whole polygon.  This whole thing is fairly complex-looking,
+		// but it will run in O(n) time.
+		while (firstEdge) {
+
+			const winding = [];
+
+			// First, find any top edge.  This *could* be up to O(n) in a pathological case, but
+			// average time is O(1) because of how we generated the edges in the first place.
+			let startEdge = firstEdge;
+			while (startEdge.kind !== 'top') {
+				startEdge = startEdge.next;
+			}
+
+			// Consume and emit the start edge.
+			consumeEdge(startEdge);
+			winding.push({ x: startEdge.x1, y: startEdge.y1 });
+
+			// Now walk forward from the current edge, following its end point to successive
+			// start points until we reach the startEdge's start point.
+			let currentEdge = startEdge;
+			while (currentEdge.key2 !== startEdge.key1) {
+
+				// First, find the set of possible edges to follow, which should be nonempty.
+				const possibleEdges = table[currentEdge.key2];
+
+				// Move to the edge that is the best one to follow.
+				currentEdge = findBestPossibleEdge(currentEdge, possibleEdges);
+
+				// Consume and emit that next edge.
+				consumeEdge(currentEdge);
+				winding.push({ x: currentEdge.x1, y: currentEdge.y1 });
+			}
+
+			// Finished a whole polygon.
+			allWindings.push(winding);
+		}
+
+		return allWindings;
+	},
+
+	/**
+	 * Calculate a minimal set of nonoverlapping nonadjoining clockwise polygons that describe this region.
+	 * The result will be an array of arrays of points, like this:
+	 *     [
+	 *         [{x:1, y:2}, {x:3, y:2}, {x:3, y:6}, {x:1, y:6}],    // Polygon 1
+	 *         [{x:7, y:5}, {x:8, y:5}, {x:8, y:8}, {x:10, y:8}, {x:10, y:9}, {x:7, y:9}]    // Polygon 2
+	 *     ]
+	 */
+	makePath = function(array) {
+		debugger;
+		if (!array.length) return [];
+		const edges = generateEdges(array);
+		const table = makeEdgeTable(edges);
+		const windings = makeWindings(edges, table);
+		return windings;
+	},
 	
+	//---------------------------------------------------------------------------------------------
+	// Region miscellaneous support.
+
 	/**
 	 * Determine if the bounding rectangles of each region actually overlap.  If they
 	 * don't overlap, we can often treat region operations as special degenerate cases.
@@ -406,10 +668,11 @@ const Region2D = (function() {
 	},
 	
 	/**
-	 * Make region data from a single rectangle, in one of the three major rectangle forms:
+	 * Make region data from a single rectangle, in one of the four major rectangle forms:
 	 *     - An object with { x:, y:, width:, height: } properties.
 	 *     - An object with { left:, top:, right:, bottom: } properties.
 	 *     - An array with [x, y, width, height] values.
+	 *     - A DOM element's bounding box.
 	 * 
 	 * This is fairly straightforward, and runs in O(1) time.
 	 */
@@ -417,7 +680,12 @@ const Region2D = (function() {
 
 		// Calculate the actual rectangle coordinates from whatever object was passed in.
 		let minX, maxX, minY, maxY;
-		if (isArray(rect)) {
+		if (rect instanceof HTMLElement) {
+			var clientRect = rect.getBoundingClientRect();
+			minX = window.scrollX + clientRect.left, minY = window.scrollY + clientRect.top;
+			maxX = window.scrollX + clientRect.right, maxY = window.scrollY + clientRect.bottom;
+		}
+		else if (isArray(rect)) {
 			if (rect.length !== 4) {
 				console.error("Cannot construct a Region2D; invalid rectangle data.");
 				throw "Data error";
@@ -699,6 +967,12 @@ const Region2D = (function() {
 		},
 		getBounds: function() {
 			return getBoundsFromData(getData(this));
+		},
+		getPath: function() {
+			return makePath(getData(this).array);
+		},
+		getEdges: function() {
+			return generateEdges(getData(this).array);
 		},
 		getHashCode: function() {
 			return getData(this).hash;

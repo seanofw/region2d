@@ -1,0 +1,5 @@
+{
+	"presets": [ "react", "stage-2", "es2015" ],
+	"plugins": [ "transform-object-assign", "transform-class-properties" ],
+	"sourceMaps": true
+}

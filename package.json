@@ -27,9 +27,19 @@
   "dependencies": {},
   "devDependencies": {
     "babel-cli": "^6.24.1",
+    "babel-loader": "^7.0.0",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-object-assign": "^6.22.0",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
     "babel-preset-es2015": "^6.24.1",
+    "babel-preset-react": "^6.24.1",
+    "babel-preset-stage-1": "^6.24.1",
+    "babel-preset-stage-2": "^6.24.1",
     "mocha": "^3.4.1",
-    "uglifyjs": "^2.4.10"
+    "react": "15.5.4",
+    "react-dom": "15.5.4",
+    "uglifyjs": "^2.4.10",
+    "webpack": "^2.6.1"
   },
   "license": "Apache-2.0"
 }
