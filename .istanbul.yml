@@ -1,0 +1,2 @@
+instrumentation:
+    excludes: ["lib/region1d.js", "lib/region2d.js"]

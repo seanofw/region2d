@@ -1,3 +1,4 @@
 imd
 .vscode
 node_modules
+coverage

@@ -1,6 +1,6 @@
 
 var assert = require('assert');
-var Region1D = require('../lib/region1d.js').default;
+var Region1D = require('../lib/region1d.debug.js').default;
 
 describe('Region1D', function() {
 
@@ -35,7 +35,43 @@ describe('Region1D', function() {
 			assert.throws(function() {
 				var badRegion = new Region1D([5, 4, 3, 2, 1, 0]);
 			});
-		})
+		});
+
+		it('disallows non-array inputs', function() {
+			assert.throws(function() {
+				var badRegion = new Region1D({start: 1, end: 2});
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D("1, 2");
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D(1, 2);
+			});
+		});
+
+		it('disallows non-numeric values in the arrays', function() {
+			assert.throws(function() {
+				var badRegion = new Region1D(["1", "2", "3", "4"]);
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D([1, 2, "3", 4]);
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D([1, true, "three", "for"]);
+			});
+		});
+
+		it('requires arrays to have even counts of numbers', function() {
+			assert.throws(function() {
+				var badRegion = new Region1D([1]);
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D([1, 3, 5]);
+			});
+			assert.throws(function() {
+				var badRegion = new Region1D([1, 3, 5, 7, 9]);
+			});
+		});
 	});
 
 	//---------------------------------------------------------------------------------------------
@@ -97,6 +133,18 @@ describe('Region1D', function() {
 			assert.deepEqual(result.getRawSpans(), [3, 12, 13, 25]);
 		});
 
+		it('can handle perfectly-matching spans', function() {
+			var a = new Region1D([3, 10, 15, 20]);
+			var b = new Region1D([2, 4, 15, 20, 25, 30]);
+			var result = a.union(b);
+			assert.deepEqual(result.getRawSpans(), [2, 10, 15, 20, 25, 30]);
+
+			var a = new Region1D([1, 2]);
+			var b = new Region1D([1, 2]);
+			var result = a.union(b);
+			assert.deepEqual(result.getRawSpans(), [1, 2]);
+		});
+
 		it('can handle infinities', function() {
 			var a = new Region1D([Number.NEGATIVE_INFINITY, 10]);
 			var b = new Region1D([20, Number.POSITIVE_INFINITY]);
@@ -107,6 +155,13 @@ describe('Region1D', function() {
 			var b = new Region1D([Number.NEGATIVE_INFINITY, 10]);
 			var result = a.union(b);
 			assert.deepEqual(result.getRawSpans(), [Number.NEGATIVE_INFINITY, 10, 20, Number.POSITIVE_INFINITY]);
+		});
+
+		it('disallows non-Region1d inputs', function() {
+			var a = new Region1D([8, 12, 13, 16, 18, 25]);
+			assert.throws(function() { a.union({start: 3, end: 5}); });
+			assert.throws(function() { a.union("3, 5"); });
+			assert.throws(function() { a.union([3, 5]); });
 		});
 	});
 
@@ -165,6 +220,18 @@ describe('Region1D', function() {
 			var b = new Region1D([3, 10, 15, 20]);
 			var result = a.intersect(b);
 			assert.deepEqual(result.getRawSpans(), [8, 10, 15, 16, 18, 20]);
+		});
+
+		it('can handle perfectly-matching spans', function() {
+			var a = new Region1D([3, 10, 15, 20]);
+			var b = new Region1D([2, 4, 15, 20, 25, 30]);
+			var result = a.intersect(b);
+			assert.deepEqual(result.getRawSpans(), [3, 4, 15, 20]);
+
+			var a = new Region1D([1, 2]);
+			var b = new Region1D([1, 2]);
+			var result = a.intersect(b);
+			assert.deepEqual(result.getRawSpans(), [1, 2]);
 		});
 
 		it('can handle infinities', function() {
@@ -239,6 +306,18 @@ describe('Region1D', function() {
 			assert.deepEqual(result.getRawSpans(), [10, 12, 13, 15, 20, 25]);
 		});
 
+		it('can handle perfectly-matching spans', function() {
+			var a = new Region1D([3, 10, 15, 20]);
+			var b = new Region1D([2, 4, 15, 20, 25, 30]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRawSpans(), [4, 10]);
+
+			var a = new Region1D([1, 2]);
+			var b = new Region1D([1, 2]);
+			var result = a.subtract(b);
+			assert.deepEqual(result.getRawSpans(), []);
+		});
+
 		it('can handle infinities', function() {
 			var a = new Region1D([Number.NEGATIVE_INFINITY, 20]);
 			var b = new Region1D([10, Number.POSITIVE_INFINITY]);
@@ -309,6 +388,18 @@ describe('Region1D', function() {
 			var b = new Region1D([3, 10, 15, 20]);
 			var result = a.xor(b);
 			assert.deepEqual(result.getRawSpans(), [3, 8, 10, 12, 13, 15, 16, 18, 20, 25]);
+		});
+
+		it('can handle perfectly-matching spans', function() {
+			var a = new Region1D([3, 10, 15, 20]);
+			var b = new Region1D([2, 4, 15, 20, 25, 30]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRawSpans(), [2, 3, 4, 10, 25, 30]);
+
+			var a = new Region1D([1, 2]);
+			var b = new Region1D([1, 2]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRawSpans(), []);
 		});
 
 		it('can handle infinities', function() {
@@ -485,6 +576,16 @@ describe('Region1D', function() {
 			assert.equal(a.doesIntersect(b), true);
 		});
 
+		it('can handle perfectly-matching spans', function() {
+			var a = new Region1D([5, 10, 15, 20]);
+			var b = new Region1D([2, 4, 15, 20, 25, 30]);
+			assert.equal(a.doesIntersect(b), true);
+
+			var a = new Region1D([1, 2]);
+			var b = new Region1D([1, 2]);
+			assert.equal(a.doesIntersect(b), true);
+		});
+
 		it('can handle infinities', function() {
 			var a = new Region1D([Number.NEGATIVE_INFINITY, 10]);
 			var b = new Region1D([20, Number.POSITIVE_INFINITY]);
@@ -526,6 +627,10 @@ describe('Region1D', function() {
 			var a = new Region1D([5, 8]);
 			var b = new Region1D([5, 8]);
 			assert.equal(a.equals(b), true);
+
+			var a = new Region1D([1, 2, 3, 4]);
+			var b = new Region1D([0, 13298]);	// Carefully chosen to make the hashes match.
+			assert.equal(a.equals(b), false);
 
 			var a = new Region1D([5, 10]);
 			var b = new Region1D([5, 8]);
@@ -652,6 +757,75 @@ describe('Region1D', function() {
 
 			var region = new Region1D([Number.NEGATIVE_INFINITY, 8, 10, 12, 20, 25, 30, Number.POSITIVE_INFINITY]);
 			assert.deepEqual(region.getBounds(), { min: Number.NEGATIVE_INFINITY, max: Number.POSITIVE_INFINITY });
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #getCount()
+
+	describe('#getCount()', function() {
+		it('returns a count of zero when there are no spans', function() {
+			var a = new Region1D([8, 12, 13, 16, 18, 25]);
+			var b = new Region1D([3, 5, 26, 30]);
+			var result = a.intersect(b);
+			assert.deepEqual(result.getRawSpans(), []);
+			assert.equal(result.getCount(), 0);
+		});
+
+		it('returns a count of one when there is one span', function() {
+			var result = new Region1D([3, 5]);
+			assert.equal(result.getCount(), 1);
+		});
+
+		it('returns a count of two when there are two spans', function() {
+			var result = new Region1D([3, 5, 7, 9]);
+			assert.equal(result.getCount(), 2);
+		});
+
+		it('returns a correct count when there are many spans', function() {
+			var a = new Region1D([8, 12, 13, 16, 18, 25]);
+			var b = new Region1D([3, 10, 15, 20]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRawSpans(), [3, 8, 10, 12, 13, 15, 16, 18, 20, 25]);
+			assert.equal(result.getCount(), 5);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #getHashCode()
+
+	describe('#getHashCode()', function() {
+		it('has a zero hash code for an empty region', function() {
+			var a = new Region1D([]);
+			assert.equal(a.getHashCode(), 0);
+		});
+
+		it('has a consistent hash code for a non-empty region', function() {
+			var a = new Region1D([5, 8]);
+			var b = new Region1D([5, 8]);
+			var c = new Region1D([5, 8]);
+			assert.equal(a.getHashCode(), b.getHashCode());
+			assert.equal(b.getHashCode(), c.getHashCode());
+		});
+
+		it('generates different hash codes for different inputs', function() {
+			var a = new Region1D([3, 5, 8, 10]);
+			var b = new Region1D([5, 8, 10, 12]);
+			assert.notEqual(a.getHashCode(), b.getHashCode());
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #_opaque()
+
+	describe('#_opaque()', function() {
+		it('disallows any attempts to use it for anything', function() {
+			var data = [5, 8, 10, 12];
+			var a = new Region1D(data);
+			assert.throws(function() { a._opaque(); });
+			assert.throws(function() { a._opaque("key"); });
+			assert.throws(function() { a._opaque(a._opaque); });
+			assert.throws(function() { a._opaque(data); });
 		});
 	});
 });

@@ -148,7 +148,6 @@ const Region1D = (function() {
 
 			// If we entered/exited a new span, emit a start/end X value.
 			if (state !== lastState) {
-				if (state < 0) return result;
 				result.push(coord.x);
 			}
 

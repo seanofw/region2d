@@ -19,6 +19,9 @@ clean:
 test: debug
 	$(MOCHA) test/region1d.tests.js test/region2d.tests.js
 
+coverage: debug
+	istanbul cover node_modules/mocha/bin/_mocha -- -R spec
+
 lib/region1d.js lib/region1d.js.map: imd/src/region1d.js imd/src/region1d.js.map
 	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/region1d.js --in-source-map imd/src/region1d.js.map --source-map lib/region1d.js.map -- $<
 
