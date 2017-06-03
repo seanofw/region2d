@@ -1,9 +1,10 @@
+var webpack = require("webpack");
 
 module.exports = {
 	entry: __dirname + '/demo/src/demo.js',
 	output: {
 		path: __dirname + '/demo/bundle',
-		filename: 'demo.js',
+		filename: 'demo.min.js',
 	},
 	module: {
 		loaders: [
@@ -14,6 +15,14 @@ module.exports = {
 			}
 		]
 	},
+	plugins: [
+		new webpack.DefinePlugin({
+			'process.env': {
+				NODE_ENV: JSON.stringify('production')
+			}
+		}),
+		new webpack.optimize.UglifyJsPlugin({ minimize: true })
+	],
 	devtool: "source-map"
 }
 

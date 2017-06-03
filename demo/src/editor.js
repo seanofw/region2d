@@ -1,11 +1,12 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 export default class Editor extends React.Component {
 	
 	static propTypes = {
-		rects: React.PropTypes.arrayOf(React.PropTypes.object),
-		onRectChange: React.PropTypes.func
+		rects: PropTypes.arrayOf(PropTypes.object),
+		onRectChange: PropTypes.func
 	}
 
 	constructor(props) {

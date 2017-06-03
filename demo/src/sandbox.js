@@ -1,5 +1,6 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 import Rectangle from './rectangle';
 import Edge from './edge';
@@ -8,8 +9,8 @@ import Region2D from '../../src/region2d';
 export default class Sandbox extends React.Component {
 	
 	static propTypes = {
-		rects: React.PropTypes.arrayOf(React.PropTypes.object),
-		onRectChange: React.PropTypes.func
+		rects: PropTypes.arrayOf(PropTypes.object),
+		onRectChange: PropTypes.func
 	}
 
 	constructor(props) {
@@ -50,9 +51,26 @@ export default class Sandbox extends React.Component {
 		}
 	}
 
+	pathToEdges(path) {
+		const edges = [];
+		for (let winding of path) {
+			let prevX = winding[winding.length - 1].x;
+			let prevY = winding[winding.length - 1].y;
+			for (let i = 0, l = winding.length; i < l; i++) {
+				const x = winding[i].x;
+				const y = winding[i].y;
+				edges.push({ x1: prevX, y1: prevY, x2: x, y2: y });
+				prevX = x;
+				prevY = y;
+			}
+		}
+		return edges;
+	}
+
 	render() {
 		const region = this.makeRegion();
-		const edges = region.getEdges();
+		const path = region.getPath();
+		const edges = this.pathToEdges(path);
 		const interiorRects = region.getRects();
 		const exterior = (new Region2D([0, 0, 800, 600])).subtract(region);
 		const exteriorRects = exterior.getRects();

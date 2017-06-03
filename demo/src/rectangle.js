@@ -1,16 +1,17 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 export default class Rectangle extends React.Component {
 	
 	static propTypes = {
-		kind: React.PropTypes.oneOf(["union", "intersect", "subtract", "xor", "region", "exterior"]).isRequired,
-		x: React.PropTypes.number.isRequired,
-		y: React.PropTypes.number.isRequired,
-		width: React.PropTypes.number.isRequired,
-		height: React.PropTypes.number.isRequired,
-		name: React.PropTypes.string,
-		onRectChange: React.PropTypes.func
+		kind: PropTypes.oneOf(["union", "intersect", "subtract", "xor", "region", "exterior"]).isRequired,
+		x: PropTypes.number.isRequired,
+		y: PropTypes.number.isRequired,
+		width: PropTypes.number.isRequired,
+		height: PropTypes.number.isRequired,
+		name: PropTypes.string,
+		onRectChange: PropTypes.func
 	}
 
 	constructor(props) {

@@ -1,13 +1,14 @@
 
 import React from 'react';
+import PropTypes from 'prop-types';
 
 export default class Edge extends React.Component {
 	
 	static propTypes = {
-		x1: React.PropTypes.number.isRequired,
-		y1: React.PropTypes.number.isRequired,
-		x2: React.PropTypes.number.isRequired,
-		y2: React.PropTypes.number.isRequired
+		x1: PropTypes.number.isRequired,
+		y1: PropTypes.number.isRequired,
+		x2: PropTypes.number.isRequired,
+		y2: PropTypes.number.isRequired
 	}
 
 	constructor(props) {

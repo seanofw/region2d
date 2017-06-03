@@ -615,6 +615,7 @@ const Region2D = (function() {
 			// Now walk forward from the current edge, following its end point to successive
 			// start points until we reach the startEdge's start point.
 			let currentEdge = startEdge;
+			let prevX = startEdge.x1, prevPrevX = null;
 			while (currentEdge.key2 !== startEdge.key1) {
 
 				// First, find the set of possible edges to follow, which should be nonempty.
@@ -623,9 +624,27 @@ const Region2D = (function() {
 				// Move to the edge that is the best one to follow.
 				currentEdge = findBestPossibleEdge(currentEdge, possibleEdges);
 
-				// Consume and emit that next edge.
+				// Consume it, now that we found it.
 				consumeEdge(currentEdge);
-				winding.push({ x: currentEdge.x1, y: currentEdge.y1 });
+
+				// Emit the next point in the winding.
+				if (currentEdge.x1 === prevX && prevX === prevPrevX) {
+					// This vertical edge was preceded by another vertical edge, so this edge piece extends it.
+					winding[winding.length - 1].y = currentEdge.y1;
+				}
+				else {
+					winding.push({ x: currentEdge.x1, y: currentEdge.y1 });
+				}
+
+				// Record where we've been so we know if we have to extend this edge.
+				prevPrevX = prevX;
+				prevX = currentEdge.x1;
+			}
+
+			// If the last edge was vertical, and it generated an extra point between its
+			// start and the winding's first point, remove its extra point.
+			if (winding[0].x === prevX && prevX === prevPrevX) {
+				winding.pop();
 			}
 
 			// Finished a whole polygon.
@@ -644,7 +663,6 @@ const Region2D = (function() {
 	 *     ]
 	 */
 	makePath = function(array) {
-		debugger;
 		if (!array.length) return [];
 		const edges = generateEdges(array);
 		const table = makeEdgeTable(edges);
@@ -654,6 +672,34 @@ const Region2D = (function() {
 	
 	//---------------------------------------------------------------------------------------------
 	// Region miscellaneous support.
+
+	
+	/**
+	 * Calculate a new region whose coordinates have all been translated/scaled by the given amounts.
+	 */
+	transformData = function(array, ratioX, ratioY, deltaX, deltaY) {
+		deltaX = Number(deltaX);
+		deltaY = Number(deltaY);
+		if (!(nInf < deltaX && deltaX < pInf) || !(nInf < deltaY && deltaY < pInf))	// Catches other NaNs as well as infinities.
+			throw "Invalid translation delta";
+		ratioX = Number(ratioX);
+		ratioY = Number(ratioY);
+		if (!(nInf < ratioX && ratioX < pInf) || ratioX === 0
+			|| !(nInf < ratioY && ratioY < pInf) || ratioY === 0)		// Catches other NaNs as well as infinities.
+			throw "Invalid scale ratio";
+
+		const newArray = [];
+		for (let i = 0, l = array.length; i < l; i++) {
+			const row = array[i]
+			newArray[i] = {
+				region: row.region.transform(ratioX, deltaX),
+				minY: row.minY * ratioY + deltaY,
+				maxY: row.maxY * ratioY + deltaY
+			};
+		}
+		
+		return newArray;
+	},
 
 	/**
 	 * Determine if the bounding rectangles of each region actually overlap.  If they
@@ -680,7 +726,7 @@ const Region2D = (function() {
 
 		// Calculate the actual rectangle coordinates from whatever object was passed in.
 		let minX, maxX, minY, maxY;
-		if (rect instanceof HTMLElement) {
+		if (typeof(HTMLElement) !== 'undefined' && rect instanceof HTMLElement) {
 			var clientRect = rect.getBoundingClientRect();
 			minX = window.scrollX + clientRect.left, minY = window.scrollY + clientRect.top;
 			maxX = window.scrollX + clientRect.right, maxY = window.scrollY + clientRect.bottom;
@@ -933,6 +979,18 @@ const Region2D = (function() {
 			const data = getData(this);
 			return new Region2D(xorData(data.array, infinite.array), privateKey);
 		},
+		transform: function(scaleX, scaleY, offsetX, offsetY) {
+			const data = getData(this);
+			return new Region2D(transformData(scaleX, scaleY, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
+		},
+		translate: function(offsetX, offsetY) {
+			const data = getData(this);
+			return new Region2D(transformData(data.array, 1.0, 1.0, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
+		},
+		scale: function(scaleX, scaleY) {
+			const data = getData(this);
+			return new Region2D(transformData(data.array, scaleX, scaleY, 0, 0));		// No privateKey forces a data check, since we could have lost precision.
+		},
 		isEmpty: function() {
 			return !getData(this).array.length;
 		},
@@ -970,9 +1028,6 @@ const Region2D = (function() {
 		},
 		getPath: function() {
 			return makePath(getData(this).array);
-		},
-		getEdges: function() {
-			return generateEdges(getData(this).array);
 		},
 		getHashCode: function() {
 			return getData(this).hash;
