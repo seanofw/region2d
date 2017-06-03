@@ -70,20 +70,20 @@ main {
 	padding: 2px 12px;
 	list-style: none;
 	border: 1px solid #BBB;
-	background: linear-gradient(to bottom, #FFF 0%, #DDD 100%);
+	background: linear-gradient(to bottom, #FFF 0%, #DDD 20%, #DDD 100%);
 	border-radius: 4px;
 }
 .editor ul.rectangle-list li.union {
-	background: linear-gradient(to bottom, #FFF 0%, #F8F880 100%);
+	background: linear-gradient(to bottom, #FFF 0%, #F8F8C0 20%, #F8F8C0 100%);
 }
 .editor ul.rectangle-list li.intersect {
-	background: linear-gradient(to bottom, #FFF 0%, #BDF 100%);
+	background: linear-gradient(to bottom, #FFF 0%, #DEF 20%, #DEF 100%);
 }
 .editor ul.rectangle-list li.subtract {
-	background: linear-gradient(to bottom, #FFF 0%, #FCC 100%);
+	background: linear-gradient(to bottom, #FFF 0%, #FEE 20%, #FEE 100%);
 }
 .editor ul.rectangle-list li.xor {
-	background: linear-gradient(to bottom, #FFF 0%, #DBF 100%);
+	background: linear-gradient(to bottom, #FFF 0%, #EDF 20%, #EDF 100%);
 }
 
 .editor ul.rectangle-list li .name {
