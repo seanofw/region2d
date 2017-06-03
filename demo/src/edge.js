@@ -32,8 +32,8 @@ export default class Edge extends React.Component {
 			<div className="edge" style={{
 				left: x1 + "px",
 				top: y1 + "px",
-				width: (x1 !== x2 ? x2 - x1 : 1) + "px",
-				height: (y1 !== y2 ? y2 - y1 : 1) + "px"
+				width: (x1 !== x2 ? x2 - x1 + 1 : 2) + "px",
+				height: (y1 !== y2 ? y2 - y1 + 1 : 2) + "px"
 			}}></div>
 		);
 	}
