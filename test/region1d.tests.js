@@ -451,6 +451,133 @@ describe('Region1D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// #translate()
+
+	describe('#translate()', function() {
+		it('has no effect on an empty region', function() {
+			assert.equal(Region1D.empty.translate(10).equals(Region1D.empty), true);
+		});
+
+		it('does nothing with a zero delta', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.translate(0).equals(new Region1D([3, 5, 8, 10])), true);
+		});
+
+		it('can move spans by positive amounts', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.translate(1).equals(new Region1D([4, 6, 9, 11])), true);
+			assert.equal(region.translate(10).equals(new Region1D([13, 15, 18, 20])), true);
+			assert.equal(region.translate(100).equals(new Region1D([103, 105, 108, 110])), true);
+		});
+
+		it('can move spans by negative amounts', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.translate(-1).equals(new Region1D([2, 4, 7, 9])), true);
+			assert.equal(region.translate(-10).equals(new Region1D([-7, -5, -2, 0])), true);
+			assert.equal(region.translate(-100).equals(new Region1D([-97, -95, -92, -90])), true);
+		});
+
+		it('fails if it loses too much precision', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.translate(1.0e+300));
+		});
+
+		it('fails at infinity', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.translate(Number.POSITIVE_INFINITY));
+			assert.throws(() => region.translate(Number.NEGATIVE_INFINITY));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #scale()
+
+	describe('#scale()', function() {
+		it('has no effect on an empty region', function() {
+			assert.equal(Region1D.empty.scale(10).equals(Region1D.empty), true);
+		});
+
+		it('does nothing with a scale of 1.0', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.scale(1.0).equals(new Region1D([3, 5, 8, 10])), true);
+		});
+
+		it('can grow spans by amounts greater than one', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.scale(1.5).equals(new Region1D([4.5, 7.5, 12, 15])), true);
+			assert.equal(region.scale(2).equals(new Region1D([6, 10, 16, 20])), true);
+			assert.equal(region.scale(10).equals(new Region1D([30, 50, 80, 100])), true);
+			assert.equal(region.scale(100).equals(new Region1D([300, 500, 800, 1000])), true);
+		});
+
+		it('can shrink spans by fractional amounts', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.scale(0.5).equals(new Region1D([1.5, 2.5, 4, 5])), true);
+			assert.equal(region.scale(0.125).equals(new Region1D([0.375, 0.625, 1.0, 1.25])), true);
+			assert.equal(region.scale(0.0078125).equals(new Region1D([0.0234375, 0.0390625, 0.0625, 0.078125])), true);
+		});
+
+		it('fails for negative numbers', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.scale(-1));
+			assert.throws(() => region.scale(-10));
+			assert.throws(() => region.scale(-100));
+		});
+
+		it('fails if it loses too much precision', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.scale(1.0e+308));
+		});
+
+		it('fails at infinity', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.scale(Number.POSITIVE_INFINITY));
+			assert.throws(() => region.scale(Number.NEGATIVE_INFINITY));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #transform()
+
+	describe('#transform()', function() {
+		it('has no effect on an empty region', function() {
+			assert.equal(Region1D.empty.transform(10, 10).equals(Region1D.empty), true);
+		});
+
+		it('does nothing with a scale of 1.0 and offset of 0.0', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.transform(1.0, 0.0).equals(new Region1D([3, 5, 8, 10])), true);
+		});
+
+		it('does what scale+translate does for normal values', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.equal(region.transform(2, 1).equals(new Region1D([7, 11, 17, 21])), true);
+			assert.equal(region.transform(10, -5).equals(new Region1D([25, 45, 75, 95])), true);
+		});
+
+		it('fails for negative scales', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.transform(-1, 0.0));
+			assert.throws(() => region.transform(-10, 0.0));
+			assert.throws(() => region.transform(-100, 0.0));
+		});
+
+		it('fails if it loses too much precision', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.transform(1.0e+308, 0.0));
+			assert.throws(() => region.transform(1.0, 1.0e+300));
+		});
+
+		it('fails at infinity', function() {
+			var region = new Region1D([3, 5, 8, 10]);
+			assert.throws(() => region.transform(Number.POSITIVE_INFINITY, 0.0));
+			assert.throws(() => region.transform(Number.NEGATIVE_INFINITY, 0.0));
+			assert.throws(() => region.transform(1.0, Number.POSITIVE_INFINITY));
+			assert.throws(() => region.transform(1.0, Number.NEGATIVE_INFINITY));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// #isEmpty()
 
 	describe('#isEmpty()', function() {
@@ -602,6 +729,71 @@ describe('Region1D', function() {
 			var a = new Region1D([10, Number.POSITIVE_INFINITY]);
 			var b = new Region1D([Number.NEGATIVE_INFINITY, 20]);
 			assert.equal(a.doesIntersect(b), true);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #relate()
+
+	describe('#relate()', function() {
+		it('returns nothing when both input regions are empty', function() {
+			var a = new Region1D([]);
+			var b = new Region1D([]);
+			assert.equal(a.relate(b), '');
+		});
+
+		it('returns nothing when either region is empty', function() {
+			var a = new Region1D([5, 8]);
+			var b = new Region1D([]);
+			assert.equal(a.relate(b), '');
+
+			var a = new Region1D([5, 8, 10, 12, 20, 25]);
+			var b = new Region1D([]);
+			assert.equal(a.relate(b), '');
+
+			var a = new Region1D([]);
+			var b = new Region1D([5, 8]);
+			assert.equal(a.relate(b), '');
+
+			var a = new Region1D([]);
+			var b = new Region1D([5, 8, 10, 12, 20, 25]);
+			assert.equal(a.relate(b), '');
+		});
+
+		it('returns nothing when there is no overlap', function() {
+			var a = new Region1D([3, 6, 10, 20]);
+			var b = new Region1D([8, 9, 30, 40]);
+			assert.equal(a.relate(b), '');
+
+			var a = new Region1D([8, 9, 30, 40]);
+			var b = new Region1D([3, 6, 10, 20]);
+			assert.equal(a.relate(b), '');
+		});
+
+		it('can detect simple intersection', function() {
+			var a = new Region1D([3, 10, 15, 20]);
+			var b = new Region1D([8, 12, 13, 16, 18, 25]);
+			assert.equal(a.relate(b), 'intersect');
+
+			var a = new Region1D([8, 12, 13, 16, 18, 25]);
+			var b = new Region1D([3, 10, 15, 20]);
+			assert.equal(a.relate(b), 'intersect');
+		});
+
+		it('can detect proper supersets', function() {
+			var a = new Region1D([5, 10, 15, 20]);
+			var b = new Region1D([2, 12, 14, 25, 30, 35]);
+			assert.equal(a.relate(b), 'b-contain-a');
+
+			var a = new Region1D([2, 12, 14, 25, 30, 35]);
+			var b = new Region1D([5, 10, 15, 20]);
+			assert.equal(a.relate(b), 'a-contain-b');
+		});
+
+		it('can detect equal sets', function() {
+			var a = new Region1D([2, 12, 16, 25, 30, 35]);
+			var b = new Region1D([2, 12, 16, 25, 30, 35]);
+			assert.equal(a.relate(b), 'equal');
 		});
 	});
 

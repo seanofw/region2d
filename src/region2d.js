@@ -981,7 +981,7 @@ const Region2D = (function() {
 		},
 		transform: function(scaleX, scaleY, offsetX, offsetY) {
 			const data = getData(this);
-			return new Region2D(transformData(scaleX, scaleY, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region2D(transformData(data.array, scaleX, scaleY, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
 		},
 		translate: function(offsetX, offsetY) {
 			const data = getData(this);

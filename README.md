@@ -116,6 +116,7 @@ var bool = myRegion.isInfinite();               // O(1). True if any rect reache
 var bool = myRegion.isFinite();                 // O(1). Opposite of isInfinite().
 var bool = myRegion.isRectangular();            // O(1). True if region is exactly one rect.
 var bool = myRegion.doesIntersect(yourRegion);  // O(n+m)
+var bool = myRegion.relate(yourRegion);         // O(n+m): '', 'intersect', 'a-contain-b', 'equal'
 var bool = myRegion.isPointIn(x);               // O(lg n)
 var bool = myRegion.equals(yourRegion);         // O(n)
 ```
@@ -181,6 +182,7 @@ var newRegion = myRegion.scale(scale);
 var bool = myRegion.isEmpty();                  // O(1)
 var bool = myRegion.isPointIn(x);               // O(lg n)
 var bool = myRegion.doesIntersect(yourRegion);  // O(n+m)
+var bool = myRegion.relate(yourRegion);         // O(n+m): '', 'intersect', 'a-contain-b', 'equal'
 var bool = myRegion.equals(yourRegion);         // O(n)
 ```
 

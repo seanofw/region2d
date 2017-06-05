@@ -190,18 +190,28 @@ const Region1D = (function() {
 	),
 
 	/**
-	 * Calculate whether the given arrays of 1-D region data intersect.
-	 * This requires constant memory, but it may take O(n+m) time.
-	 * Returns true or false.
+	 * Calculate whether the given arrays of 1-D region data intersect, and
+	 * if so, how.  This requires constant memory, but it may take O(n+m) time.
+	 * 
+	 * If 'earlyOut' is true, this will return only '' or 'intersects', and
+	 * it will return that answer as soon as it possibly can, skipping testing
+	 * successive data if possible.
+	 * 
+	 * Returns one of:
+	 *    '': no intersection
+	 *    'intersect': there is at least some kind of intersection
+	 *    'a-contain-b': array1 is a proper superset of array2
+	 *    'b-contain-a': array2 is a proper superset of array1
+	 *    'equal': array1 and array2 represent the same exact region
 	 */
-	doesIntersectData = function(array1, array2) {
+	relateData = function(array1, array2, earlyOut) {
 		
 		// If either is empty, there's no intersection.
-		if (!array1.length || !array2.length) return false;
+		if (!array1.length || !array2.length) return '';
 		
 		// If all of the spans of one are before all of the spans of another, there's no intersection.
 		if (array1[array1.length - 1] < array2[0]
-			|| array2[array2.length - 1] < array1[0]) return false;
+			|| array2[array2.length - 1] < array1[0]) return '';
 			
 		// Test all the spans against each other.
 		let depth1 = 0, depth2 = 0;
@@ -209,6 +219,10 @@ const Region1D = (function() {
 
 		// Do whatever needs to happen at the very first coordinate.
 		let coord = getNext();
+
+		// Bit flags:  We start out assuming A and B both contain each other, but there
+		// is not yet an intersection.  It's weird, but go with it.
+		let result = 3;
 
 		do {
 			// Do whatever happens at this coordinate.
@@ -225,13 +239,30 @@ const Region1D = (function() {
 			
 			// Change the state to match whatever happened here.
 			if (depth1 & depth2) {
-				return true;
+				// Got an intersection.
+				result |= 4;
+				if (earlyOut) return 'intersect';
+			}
+			else if (depth2 & ~depth1) {
+				// A does not contain B.
+				result &= ~1;
+			}
+			else if (depth1 & ~depth2) {
+				// B does not contain A.
+				result &= ~2;
 			}
 
 			coord = nextCoord;
 		} while (coord);
 
-		return false;
+		// Choose an answer based on the resulting flag bits.
+		switch (result) {
+			case 4: return 'intersect';		// 1 0 0
+			case 5: return 'a-contain-b';	// 1 0 1
+			case 6: return 'b-contain-a';	// 1 1 0
+			case 7: return 'equal';			// 1 1 1
+			default: return '';				// 0 * *
+		}
 	},
 
 	/**
@@ -528,7 +559,7 @@ const Region1D = (function() {
 		},
 		transform: function(scale, offset) {
 			const data = getData(this);
-			return new Region1D(scaleData(data.array, scale, offset));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region1D(transformData(data.array, scale, offset));		// No privateKey forces a data check, since we could have lost precision.
 		},
 		translate: function(offset) {
 			const data = getData(this);
@@ -536,7 +567,7 @@ const Region1D = (function() {
 		},
 		scale: function(scale) {
 			const data = getData(this);
-			return new Region1D(scaleData(data.array, scale, 0));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region1D(transformData(data.array, scale, 0));		// No privateKey forces a data check, since we could have lost precision.
 		},
 		isEmpty: function() {
 			return !getData(this).array.length;
@@ -546,7 +577,11 @@ const Region1D = (function() {
 		},
 		doesIntersect: function(other) {
 			verifyRegion1DType(other);
-			return doesIntersectData(getData(this).array, getData(other).array);
+			return !!relateData(getData(this).array, getData(other).array, true);
+		},
+		relate: function(other) {
+			verifyRegion1DType(other);
+			return relateData(getData(this).array, getData(other).array, false);
 		},
 		isPointIn: function(x) {
 			return isPointInData(getData(this).array, Number(x));

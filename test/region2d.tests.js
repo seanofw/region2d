@@ -589,5 +589,195 @@ describe('Region2D', function() {
 			]));
 		});
 	});
+
+	//---------------------------------------------------------------------------------------------
+	// #xor()
+
+	describe('#xor()', function() {
+		it('can combine two rectangular regions, with an above/below relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 ****
+			// 5 ****
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 6, 5, 8
+			]));
+
+			// Inverted case.
+			var result = b.xor(a);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 6, 5, 8
+			]));
+		});
+
+		it('can combine two rectangular regions, with a left/right relationship', function() {
+			//   1234567
+			// 1
+			// 2 AA**BB
+			// 3 AA**BB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6
+			// 7
+			// 8
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 2, 7, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 3, 6,
+				5, 2, 7, 6
+			]));
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 3, 6,
+				5, 2, 7, 6
+			]));
+		});
+
+		it('can combine two rectangular regions, with an above-left relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var a = new Region2D([3, 4, 7, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 4, 3, 6,
+				5, 4, 7, 6,
+				3, 6, 7, 8
+			]));
+
+			// Invert them.
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 4, 7, 8]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 4, 3, 6,
+				5, 4, 7, 6,
+				3, 6, 7, 8
+			]));
+		});
+
+		it('can combine two rectangular regions, with an above-right relationship', function() {
+			//   1234567
+			// 1
+			// 2   BBBB
+			// 3   BBBB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([3, 2, 7, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				3, 2, 7, 4,
+				1, 4, 3, 6,
+				5, 4, 7, 6,
+				1, 6, 5, 8
+			]));
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 4, 5, 8]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				3, 2, 7, 4,
+				1, 4, 3, 6,
+				5, 4, 7, 6,
+				1, 6, 5, 8
+			]));
+		});
+
+		it('should act like union for disconnected rectangular regions', function() {
+			//   12345678
+			// 1
+			// 2 BBB
+			// 3 BBB
+			// 4 BBB AAA
+			// 5 BBB AAA
+			// 6     AAA
+			// 7     AAA
+			// 8
+			var a = new Region2D([5, 4, 8, 8]);
+			var b = new Region2D([1, 2, 4, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 4, 4,
+				1, 4, 4, 6,
+				5, 4, 8, 6,
+				5, 6, 8, 8,
+			]));
+
+			// Invert them.
+			var b = new Region2D([5, 4, 8, 8]);
+			var a = new Region2D([1, 2, 4, 6]);
+			var result = a.xor(b);
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 4, 4,
+				1, 4, 4, 6,
+				5, 4, 8, 6,
+				5, 6, 8, 8,
+			]));
+		});
+
+		it('can turn a rectangle into a donut into a bullseye', function() {
+			//   1234567
+			// 1
+			// 2  AAAAAA
+			// 3  A****A
+			// 4  A*BB*A
+			// 5  A*BB*A
+			// 6  A****A
+			// 7  AAAAAA
+			// 8 
+			var rectangle = new Region2D([2, 2, 8, 8]);
+			var hole = new Region2D([4, 4, 6, 6]);
+			var donut = rectangle.xor(hole);
+			assert.deepEqual(donut.getRects(), makeRects([
+				2, 2, 8, 4,
+				2, 4, 4, 6,
+				6, 4, 8, 6,
+				2, 6, 8, 8
+			]));
+
+			var fill = new Region2D([3, 3, 7, 7]);
+			var bullseye = donut.xor(fill);
+			assert.deepEqual(bullseye.getRects(), makeRects([
+				2, 2, 8, 3,
+				2, 3, 3, 4,
+				7, 3, 8, 4,
+				2, 4, 3, 6,
+				4, 4, 6, 6,
+				7, 4, 8, 6,
+				2, 6, 3, 7,
+				7, 6, 8, 7,
+				2, 7, 8, 8,
+			]));
+		});
+	});
 });
 
