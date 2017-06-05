@@ -238,7 +238,9 @@ Using the _banded rectangles_ design ensures that:
 - All unary operations run in a worst-case time of O(n).
 - Some operations (such as a point-test) can run in O(lg n) time.
 
-However, this speed does come at a cost in space, in that `Region2d` may (in a pathological case) require twice as many rectangles compared to an optimal representation of the same region.
+However, this speed does come at a cost in space, in that `Region2d` may (in a pathological case) require O(n^2) rectangles compared to an optimal representation of the same region.
+
+But in normal scenarios, `Region2d` requires between n and 2\*n rectangles compared to an optimal representation of the same region, and is much, much faster than an optimal representation.  (`Region2d` requires O(n+m) time for most operations, whereas the optimal representation typically requires O(n\*m) time.)
 
 ### Prior Art
 
