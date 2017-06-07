@@ -30,7 +30,10 @@ var
 			result.push(makeRect(array, i));
 		}
 		return result;
-	};
+	},
+	
+	nInf = Number.NEGATIVE_INFINITY,
+	pInf = Number.POSITIVE_INFINITY;
 
 describe('Region2D', function() {
 
@@ -56,6 +59,56 @@ describe('Region2D', function() {
 			var region = new Region2D({ left: 5, top: 6, right: 20, bottom: 30 });
 			assert.deepEqual(region.getRects(), makeRects([5, 6, 20, 30]));
 			assert.deepEqual(region.getBounds(), makeRect([5, 6, 20, 30]));
+		});
+
+		it('can create rectangular regions from an HTMLElement', function() {
+			// Make a fake HTMLElement prototype we can instantiate.
+			HTMLElement = function(x, y, width, height) {
+				this.x = x, this.y = y, this.width = width, this.height = height;
+			};
+			HTMLElement.prototype = {
+				getBoundingClientRect: function() {
+					return { left: this.x, top: this.y, right: this.x + this.width, bottom: this.y + this.height };
+				}
+			};
+
+			// Make a fake Window object.
+			window = {
+				scrollX: 0,
+				scrollY: 0
+			};
+
+			// Now create a region from an "HTMLElement".
+			var region = new Region2D(new HTMLElement(5, 6, 15, 24));
+
+			assert.deepEqual(region.getRects(), makeRects([5, 6, 20, 30]));
+			assert.deepEqual(region.getBounds(), makeRect([5, 6, 20, 30]));
+		});
+
+		it('will not create regions from arrays of the wrong length', function() {
+			assert.throws(function() { new Region2D([]); });
+			assert.throws(function() { new Region2D([1]); });
+			assert.throws(function() { new Region2D([1, 2]); });
+			assert.throws(function() { new Region2D([1, 2, 3]); });
+			//assert.throws(function() { new Region2D([1, 2, 3, 4]); });  // Four is the only one that's okay.
+			assert.throws(function() { new Region2D([1, 2, 3, 4, 5]); });
+			assert.throws(function() { new Region2D([1, 2, 3, 4, 5, 6]); });
+		});
+
+		it('will not create regions from rectangles of negative width', function() {
+			assert.throws(function() { new Region2D([3, 2, 1, 4]); });
+			assert.throws(function() { new Region2D({ left: 3, top: 2, right: 1, bottom: 4 }); });
+			assert.throws(function() { new Region2D({ x: 3, y: 2, width: -2, height: 2 }); });
+		});
+
+		it('will not create regions from rectangles of negative height', function() {
+			assert.throws(function() { new Region2D([1, 4, 3, 2]); });
+			assert.throws(function() { new Region2D({ left: 1, top: 3, right: 4, bottom: 2 }); });
+			assert.throws(function() { new Region2D({ x: 1, y: 4, width: 2, height: -2 }); });
+		});
+
+		it('will not create regions from objects that don\'t look like rectangles', function() {
+			assert.throws(function() { new Region2D({ glorp: 1, gleep: 3, frop: 4, boo: 2 }); });
 		});
 	});
 
@@ -777,6 +830,117 @@ describe('Region2D', function() {
 				7, 6, 8, 7,
 				2, 7, 8, 8,
 			]));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #not()
+
+	describe('#not()', function() {
+		it('turns the empty set into the infinite set', function() {
+			assert.deepEqual(Region2D.empty.not().getRects(), makeRects([
+				Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY,
+			]));
+		});
+
+		it('turns the infinite set into the empty set', function() {
+			assert.deepEqual(Region2D.infinite.not().getRects(), []);
+		});
+
+		it('produces the opposite of a given finite region', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var a = new Region2D([3, 4, 7, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			var region = a.union(b);
+			var result = region.not();
+			assert.deepEqual(result.getRects(), makeRects([
+				nInf, nInf, pInf, 2,	// Top infinite row
+				nInf, 2, 1, 4,   5, 2, pInf, 4,
+				nInf, 4, 1, 6,   7, 4, pInf, 6,
+				nInf, 6, 3, 8,   7, 6, pInf, 8,
+				nInf, 8, pInf, pInf		// Bottom infinite row
+			]));
+		});
+
+		it('produces the opposite of a given infinite region', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ nInf, nInf, pInf, 2 ],	// Top infinite row
+				[ nInf, 2, 1, 4 ], [ 5, 2, pInf, 4 ],
+				[ nInf, 4, 1, 6 ], [ 7, 4, pInf, 6 ],
+				[ nInf, 6, 3, 8 ], [ 7, 6, pInf, 8 ],
+				[ nInf, 8, pInf, pInf ]		// Bottom infinite row
+			]);
+			var result = region.not();
+			assert.deepEqual(result.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 4, 7, 6,
+				3, 6, 7, 8
+			]));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// Region2D.fromRects()
+
+	describe('Region2D.fromRects()', function() {
+		it('can create a region from the empty set', function() {
+			assert.deepEqual(Region2D.fromRects([]).getRects(), Region2D.empty.getRects());
+		});
+
+		it('can create a region from one rectangle', function() {
+			assert.deepEqual(Region2D.fromRects([[1, 2, 3, 4]]).getRects(), makeRects([1, 2, 3, 4]));
+		});
+
+		it('can create a region from multiple rectangles, including overlapping', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.deepEqual(region.getRects(), makeRects([
+				1, 2, 5, 4,
+				1, 4, 7, 6,
+				3, 6, 7, 8
+			]));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #_opaque()
+
+	describe('#_opaque()', function() {
+		it('disallows any attempts to use it for anything', function() {
+			var data = [5, 8, 10, 12];
+			var a = new Region2D(data);
+			assert.throws(function() { a._opaque(); });
+			assert.throws(function() { a._opaque("key"); });
+			assert.throws(function() { a._opaque(a._opaque); });
+			assert.throws(function() { a._opaque(data); });
 		});
 	});
 });

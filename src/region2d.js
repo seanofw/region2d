@@ -713,6 +713,11 @@ const Region2D = (function() {
 			|| data1.maxY < data2.minY);
 	},
 	
+	dataError = "Data error",
+	cannotConstructMessage = "Cannot construct a Region2D from ",
+	invalidRectangleDataMessage = cannotConstructMessage + "invalid rectangle data.",
+	invalidRectangleSizeMessage = cannotConstructMessage + "a rectangle of zero or negative size.",
+
 	/**
 	 * Make region data from a single rectangle, in one of the four major rectangle forms:
 	 *     - An object with { x:, y:, width:, height: } properties.
@@ -733,8 +738,8 @@ const Region2D = (function() {
 		}
 		else if (isArray(rect)) {
 			if (rect.length !== 4) {
-				console.error("Cannot construct a Region2D; invalid rectangle data.");
-				throw "Data error";
+				console.error(invalidRectangleDataMessage);
+				throw dataError;
 			}
 			minX = Number(rect[0]), minY = Number(rect[1]);
 			maxX = Number(rect[2]), maxY = Number(rect[3]);
@@ -743,15 +748,19 @@ const Region2D = (function() {
 			minX = Number(rect.left), minY = Number(rect.top);
 			maxX = Number(rect.right), maxY = Number(rect.bottom);
 		}
-		else {
+		else if ("x" in rect) {
 			minX = Number(rect.x), minY = Number(rect.y);
 			maxX = minX + Number(rect.width), maxY = minY + Number(rect.height);
+		}
+		else {
+			console.error(invalidRectangleDataMessage);
+			throw dataError;
 		}
 
 		// Validate the rectangle data.
 		if (maxX <= minX || maxY <= minY) {
-			console.error("Cannot construct a Region2D from a rectangle of zero or negative size.");
-			throw "Data error";
+			console.error(invalidRectangleSizeMessage);
+			throw dataError;
 		}
 
 		// Construct the new row containing that rectangle.
@@ -976,8 +985,8 @@ const Region2D = (function() {
 		not: function() {
 			// Lazy implementation of 'not': Simply 'xor' with an infinite region.
 			// A better implementation would take advantage of the efficient Region1d#not() method.
-			const data = getData(this);
-			return new Region2D(xorData(data.array, infinite.array), privateKey);
+			const data = getData(this), otherData = getData(infinite);
+			return new Region2D(xorData(data.array, otherData.array), privateKey);
 		},
 		transform: function(scaleX, scaleY, offsetX, offsetY) {
 			const data = getData(this);
@@ -1044,6 +1053,18 @@ const Region2D = (function() {
 	 */
 	Region2D.empty = empty = new Region2D();
 	
+	/**
+	 * Static helper function for creating complex regions from arrays of rectangles.
+	 */
+	Region2D.fromRects = function(rects) {
+		if (!rects.length) return empty;
+		let region = new Region2D(rects[0]);
+		for (let i = 1, l = rects.length; i < l; i++) {
+			region = region.union(new Region2D(rects[i]));
+		}
+		return region;
+	};
+
 	return Region2D;
 })();
 
