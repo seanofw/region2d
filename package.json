@@ -1,18 +1,19 @@
 {
-  "name": "graphics-region",
+  "name": "region2d",
   "version": "0.1.0",
   "description": "A JavaScript implementation of the Region abstract data type, which GUIs use to perform constructive solid geometry with 2-D rectangles.",
   "author": "Sean Werkema",
-  "main": "lib/region.js",
+  "main": "lib/region2d.js",
   "files": [
-    "lib/"
+    "lib/",
+    "plain/"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/seanofw/graphics-region"
+    "url": "https://github.com/seanofw/region2d"
   },
   "bugs": {
-    "url": "https://github.com/seanofw/graphics-region/issues"
+    "url": "https://github.com/seanofw/region2d/issues"
   },
   "keywords": [
     "region",
