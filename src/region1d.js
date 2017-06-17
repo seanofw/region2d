@@ -7,7 +7,6 @@ function RegionError(message) {
 	stackPieces.shift();
 	stackPieces.shift();
 	this.stack = stackPieces.join('\n');
-	this.toString = function() { return this.message; };
 };
 RegionError.prototype = Object.create ? Object.create(Error.prototype) : new Error;
 

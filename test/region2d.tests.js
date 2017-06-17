@@ -896,6 +896,74 @@ describe('Region2D', function() {
 		});
 	});
 
+
+	//---------------------------------------------------------------------------------------------
+	// Region2D.transform()
+
+	describe('Region2D.transform()', function() {
+		it('does nothing to an empty region', function() {
+			assert.deepEqual(Region2D.empty.transform(10, 20, 30, 40).getRects(), Region2D.empty.getRects());
+		});
+
+		it('can grow and move a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.transform(10, 20, 30, 40).getRects(), makeRects([40, 80, 60, 120]));
+		});
+
+		it('can shrink and move a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.transform(0.5, 0.25, -1, -1).getRects(), makeRects([-0.5, -0.5, 0.5, 0]));
+		});
+
+		it('fails with negative scaling numbers or zero', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { region.transform(-2, 1, 2, 3); });
+			assert.throws(function() { region.transform(-10, 1, 2, 3); });
+			assert.throws(function() { region.transform(0, 1, 2, 3); });
+			assert.throws(function() { region.transform(1, -2, 2, 3); });
+			assert.throws(function() { region.transform(1, -10, 2, 3); });
+			assert.throws(function() { region.transform(1, 0, 2, 3); });
+		});
+
+		it('can move and resize a complex region made from multiple rectangles', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.deepEqual(region.transform(10, 20, 5, 15).getRects(), makeRects([
+				15, 55, 55, 95,
+				15, 95, 75, 135,
+				35, 135, 75, 175
+			]));
+		});
+
+		it('fails if the new region\'s points overlap or reach infinity', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { region.transform(pInf, 1, 2, 3); });
+			assert.throws(function() { region.transform(1, pInf, 2, 3); });
+			assert.throws(function() { region.transform(nInf, 1, 2, 3); });
+			assert.throws(function() { region.transform(1, nInf, 2, 3); });
+			assert.throws(function() { region.transform(10e+308, 1, 2, 3); });
+			assert.throws(function() { region.transform(1, 10e+308, 2, 3); });
+
+			assert.throws(function() { region.transform(1, 2, pInf, 0); });
+			assert.throws(function() { region.transform(1, 2, 0, pInf); });
+			assert.throws(function() { region.transform(1, 2, nInf, 0); });
+			assert.throws(function() { region.transform(1, 2, 0, nInf); });
+			assert.throws(function() { region.transform(1, 2, 10e+53, 0); });
+			assert.throws(function() { region.transform(1, 2, 0, 10e+53); });
+		});
+	});
+
 	//---------------------------------------------------------------------------------------------
 	// Region2D.translate()
 
@@ -943,6 +1011,66 @@ describe('Region2D', function() {
 			assert.throws(function() { region.translate(0, nInf); });
 			assert.throws(function() { region.translate(10e+53, 0); });
 			assert.throws(function() { region.translate(0, 10e+53); });
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// Region2D.scale()
+
+	describe('Region2D.scale()', function() {
+		it('does nothing to an empty region', function() {
+			assert.deepEqual(Region2D.empty.scale(10, 10).getRects(), Region2D.empty.getRects());
+		});
+
+		it('can grow a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.scale(2, 3).getRects(), makeRects([2, 6, 6, 12]));
+		});
+
+		it('can shrink a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.scale(0.5, 0.25).getRects(), makeRects([0.5, 0.5, 1.5, 1]));
+		});
+
+		it('fails with negative numbers or zero', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { region.scale(-2, 1); });
+			assert.throws(function() { region.scale(-10, 1); });
+			assert.throws(function() { region.scale(0, 1); });
+			assert.throws(function() { region.scale(1, -2); });
+			assert.throws(function() { region.scale(1, -10); });
+			assert.throws(function() { region.scale(1, 0); });
+		});
+
+		it('can resize a complex region made from multiple rectangles', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.deepEqual(region.scale(10, 20).getRects(), makeRects([
+				10, 40, 50, 80,
+				10, 80, 70, 120,
+				30, 120, 70, 160
+			]));
+		});
+
+		it('fails if the new region\'s points overlap or reach infinity', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { region.scale(pInf, 1); });
+			assert.throws(function() { region.scale(1, pInf); });
+			assert.throws(function() { region.scale(nInf, 1); });
+			assert.throws(function() { region.scale(1, nInf); });
+			assert.throws(function() { region.scale(10e+308, 1); });
+			assert.throws(function() { region.scale(1, 10e+308); });
 		});
 	});
 

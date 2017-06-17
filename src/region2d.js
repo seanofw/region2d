@@ -797,6 +797,69 @@ const Region2D = (function() {
 		};
 	},
 
+	rowDataErrorMessage = "Invalid row data for row ",
+
+	/**
+	 * Construct a region from raw band data.  This simply checks the band data for correctness,
+	 * and then fills in the appropriate metadata.  This runs in O(n) time with respect to the
+	 * number of bands.
+	 */
+	makeDataFromRows = function(bands) {
+
+		// These will collect all the statistical metadata about the region.
+		let prevMax = nInf;
+		let count = 0;
+		let minX = pInf, maxX = nInf;
+		let hash = 0;
+
+		// Clone the band data, validate it, and collect the metadata.  This is O(n) with respect
+		// to the number of bands; the number of rectangles per band is irrelevant.
+		const array = [];
+		for (let i = 0, l = bands.length; i < l; i++) {
+
+			// Check the band.
+			const band = bands[i];
+			if (band.minY < prevMax || band.minY >= band.maxY || !(band.region instanceof Region1D)) {
+				throw new RegionError(rowDataErrorMessage + i);
+			}
+
+			// Push a cloned copy of its data.
+			array.push({
+				region: band.region,
+				minY: band.minY,
+				maxY: band.maxY
+			});
+
+			// Collect statistics about the band.
+			const rowCount = band.region.getCount();
+			if (!rowCount) {
+				throw new RegionError(rowDataErrorMessage + i);
+			}
+			count += rowCount;
+
+			// Update the region's X boundaries.
+			const bounds = band.region.getBounds();
+			if (bounds.min < minX) minX = bounds.min;
+			if (bounds.max > maxX) maxX = bounds.max;
+
+			// Update the region's hash code (for fast inequality tests).
+			hash *= 23;
+			hash += band.region.getHashCode() | 0;
+			hash &= ~0;
+		}
+
+		// Create the region data from the resulting rows and the metadata.
+		return {
+			array: array,
+			count: count,
+			minX: minX,
+			minY: array.length ? array[0].minY : pInf,
+			maxX: maxX,
+			maxY: array.length ? array[array.length - 1].maxY : nInf,
+			hash: hash
+		};
+	},
+
 	/**
 	 * Create a simple rectangle from the given region's internal bounding rect.
 	 */
@@ -811,6 +874,23 @@ const Region2D = (function() {
 			right: data.maxX,
 			bottom: data.maxY
 		};
+	},
+
+	/**
+	 * Get a copy of the raw row data.
+	 */
+	getRawRows = function(data) {
+		const srcArray = data.array;
+		const destArray = [];
+		for (let i = 0, l = srcArray.length; i < l; i++) {
+			const src = srcArray[i];
+			destArray.push({
+				minY: src.minY,
+				maxY: src.maxY,
+				region: src.region
+			});
+		}
+		return destArray;
 	},
 
 	/**
@@ -987,15 +1067,15 @@ const Region2D = (function() {
 		},
 		transform: function(scaleX, scaleY, offsetX, offsetY) {
 			const data = getData(this);
-			return new Region2D(transformData(data.array, scaleX, scaleY, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region2D(makeDataFromRows(transformData(data.array, scaleX, scaleY, offsetX, offsetY)), privateKey);
 		},
 		translate: function(offsetX, offsetY) {
 			const data = getData(this);
-			return new Region2D(transformData(data.array, 1.0, 1.0, offsetX, offsetY));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region2D(makeDataFromRows(transformData(data.array, 1.0, 1.0, offsetX, offsetY)), privateKey);
 		},
 		scale: function(scaleX, scaleY) {
 			const data = getData(this);
-			return new Region2D(transformData(data.array, scaleX, scaleY, 0, 0));		// No privateKey forces a data check, since we could have lost precision.
+			return new Region2D(makeDataFromRows(transformData(data.array, scaleX, scaleY, 0, 0)), privateKey);
 		},
 		isEmpty: function() {
 			return !getData(this).array.length;
@@ -1029,6 +1109,9 @@ const Region2D = (function() {
 		getRects: function() {
 			return makeRects(getData(this).array);
 		},
+		getRawRows: function() {
+			return getRawRows(getData(this).array);
+		},
 		getBounds: function() {
 			return getBoundsFromData(getData(this));
 		},
@@ -1060,6 +1143,22 @@ const Region2D = (function() {
 			region = region.union(new Region2D(rects[i]));
 		}
 		return region;
+	};
+
+	/**
+	 * Static helper function for creating complex regions from pre-constructed row data.
+	 * This is the fastest way to create a complex region, as it runs in O(n) time (with
+	 * respect to the number of rows), but it has strict requirements on the shape of the
+	 * row data.
+	 * 
+	 * @param rows {Array} - An array of objects, where each object describes a row of the
+	 *    region.  The row objects must have the properties 'region' {Region1D}, 'minY' {Number},
+	 *    and 'maxY' {Number}.  The 'maxY' of each row must be strictly greater than the 'minY'
+	 *    of that row, and the 'minY' of each row must be greater than or equal to the 'maxY' of
+	 *    the previous row.  Each row's Region1D must also be nonempty.
+	 */
+	Region2D.fromRows = function(rows) {
+		return new Region2D(makeDataFromRows(rows), privateKey);
 	};
 
 	return Region2D;
