@@ -36,8 +36,6 @@ Notable features of this implementation include:
 
 
 
-
-
 ## Installation
 
 **Vanilla JavaScript in the Browser:**
@@ -54,8 +52,6 @@ In NodeJS or a CommonJS environment, install the `region2d` package, and then us
 - `import { Region1D, Region2D } from "region2d";`  (ES6)
     or
 - `var Region2D = require('region2d');`  (in classic JavaScript)
-
-
 
 
 
@@ -262,8 +258,6 @@ This implementation is missing some features common to other implementations:
 
 
 
-
-
 ## License
 
 This library is licensed under the [Apache 2.0](LICENSE.txt) open-source license, which basically means:
@@ -272,4 +266,3 @@ This library is licensed under the [Apache 2.0](LICENSE.txt) open-source license
 - Do what you want with it, but -
 - Don't claim you wrote it, and -
 - Don't complain if it breaks.
-

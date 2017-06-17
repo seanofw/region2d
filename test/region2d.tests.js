@@ -1,7 +1,7 @@
 
 var assert = require('assert');
 
-var Region2D = require('../lib/region2d.debug.js').default;
+var Region2D = require('../lib/region2d.js').default;
 
 var
 	/**

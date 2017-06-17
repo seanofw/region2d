@@ -13,13 +13,13 @@ RM = rm
 all: lib plain demo
 
 clean:
-	$(RM) -rf lib/* imd/* plain/* demo/bundle/*
+	$(RM) -rf lib/* plain/* demo/bundle/* coverage
 
-test: debug
-	$(MOCHA) test/region1d.tests.js test/region2d.tests.js
+test: lib
+	pushd test; ../$(MOCHA) *.tests.js; popd
 
 coverage: lib
-	istanbul cover node_modules/mocha/bin/_mocha -- -R spec
+	istanbul cover node_modules/mocha/bin/_mocha -- test/*.tests.js
 
 lib: lib/region1d.js lib/region1d.js.map \
 	lib/region2d.js lib/region2d.js.map \
@@ -36,16 +36,11 @@ plain/region2d.min.js: plain/region2d.js
 	mkdir -p plain
 	$(UGLIFY) $(UGLIFY_FLAGS) --output plain/region2d.min.js -- $<
 
-lib/%.min.js lib/%.min.js.map: imd/src/%.js imd/src/%.js.map
-	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/$*.min.js --in-source-map imd/src/$*.js.map --source-map lib/$*.min.js.map -- $<
+lib/%.min.js lib/%.min.js.map: lib/%.js lib/%.js.map
+	$(UGLIFY) $(UGLIFY_FLAGS) --output lib/$*.min.js --in-source-map lib/$*.js.map --source-map lib/$*.min.js.map -- $<
 
-imd/%.js imd/%.js.map: %.js
-	mkdir -p imd
-	$(BABEL) --out-dir imd --source-maps -- $<
-
-lib/%: imd/src/%
-	mkdir -p lib
-	cp $< $@
+lib/%.js lib/%.js.map: src/%.js
+	mkdir -p lib; pushd src; $(BABEL) --sourceRoot . --out-dir ../lib --source-maps -- $*.js; popd
 
 demo: demo/bundle/demo.js
 
