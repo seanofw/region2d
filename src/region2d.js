@@ -1,4 +1,4 @@
-import Region1D from './region1d';
+import { Region1D, RegionError } from './region1d';
 
 /**
  * Region2D objects are semi-opaque data structures that represent a 2-dimensional
@@ -63,6 +63,8 @@ const Region2D = (function() {
 	pInf = Number.POSITIVE_INFINITY,
 	nInf = Number.NEGATIVE_INFINITY,
 
+	regionError = RegionError,
+
 	//---------------------------------------------------------------------------------------------
 	// Helper functions.
 
@@ -73,7 +75,7 @@ const Region2D = (function() {
 	makeProtectedData = function(protectedData, expectedKey) {
 		return function(actualKey) {
 			if (actualKey === expectedKey) return protectedData;
-			else throw "Illegal access";
+			else throw new regionError("Illegal access");
 		};
 	},
 
@@ -591,7 +593,7 @@ const Region2D = (function() {
 			}
 
 			// Shouldn't get here.
-			throw "Edge generation failure.";
+			throw new regionError("Edge generation failure.");
 		};
 
 		// Main loop:  We do this until we run out of edges.  Each iteration of the loop
@@ -681,12 +683,12 @@ const Region2D = (function() {
 		deltaX = Number(deltaX);
 		deltaY = Number(deltaY);
 		if (!(nInf < deltaX && deltaX < pInf) || !(nInf < deltaY && deltaY < pInf))	// Catches other NaNs as well as infinities.
-			throw "Invalid translation delta";
+			throw new regionError("Invalid translation delta");
 		ratioX = Number(ratioX);
 		ratioY = Number(ratioY);
 		if (!(nInf < ratioX && ratioX < pInf) || ratioX === 0
 			|| !(nInf < ratioY && ratioY < pInf) || ratioY === 0)		// Catches other NaNs as well as infinities.
-			throw "Invalid scale ratio";
+			throw new regionError("Invalid scale ratio");
 
 		const newArray = [];
 		for (let i = 0, l = array.length; i < l; i++) {
@@ -713,7 +715,6 @@ const Region2D = (function() {
 			|| data1.maxY < data2.minY);
 	},
 	
-	dataError = "Data error",
 	cannotConstructMessage = "Cannot construct a Region2D from ",
 	invalidRectangleDataMessage = cannotConstructMessage + "invalid rectangle data.",
 	invalidRectangleSizeMessage = cannotConstructMessage + "a rectangle of zero or negative size.",
@@ -738,8 +739,7 @@ const Region2D = (function() {
 		}
 		else if (isArray(rect)) {
 			if (rect.length !== 4) {
-				console.error(invalidRectangleDataMessage);
-				throw dataError;
+				throw new regionError(invalidRectangleDataMessage);
 			}
 			minX = Number(rect[0]), minY = Number(rect[1]);
 			maxX = Number(rect[2]), maxY = Number(rect[3]);
@@ -753,14 +753,12 @@ const Region2D = (function() {
 			maxX = minX + Number(rect.width), maxY = minY + Number(rect.height);
 		}
 		else {
-			console.error(invalidRectangleDataMessage);
-			throw dataError;
+			throw new regionError(invalidRectangleDataMessage);
 		}
 
 		// Validate the rectangle data.
 		if (maxX <= minX || maxY <= minY) {
-			console.error(invalidRectangleSizeMessage);
-			throw dataError;
+			throw new regionError(invalidRectangleSizeMessage);
 		}
 
 		// Construct the new row containing that rectangle.
@@ -909,8 +907,7 @@ const Region2D = (function() {
 	 */
 	verifyRegion2DType = function(obj) {
 		if (!(obj instanceof Region2D)) {
-			console.error("Object must be a Region2D instance.");
-			throw "Type error";
+			throw new regionError("Object must be a Region2D instance.");
 		}
 	},
 
@@ -928,7 +925,7 @@ const Region2D = (function() {
 	 */
 	getData = function(region) {
 		return region._opaque(privateKey);
-	},
+	};
 
 	/**
 	 * Construct a 2-D region either from either nothing or from the given rectangle.
@@ -945,7 +942,7 @@ const Region2D = (function() {
 	 * Alternative internal invocation:
 	 *     var region = new Region2d(regionData, privateKey);
 	 */
-	Region2D = function(rect, key) {
+	function Region2D(rect, key) {
 		const data = (key === privateKey) ? rect
 			: (typeof rect !== 'undefined') ? makeRegionDataFromOneRect(rect)
 			: makeEmptyRegionData();
@@ -1069,4 +1066,4 @@ const Region2D = (function() {
 })();
 
 export default Region2D;
-export { Region1D, Region2D };
+export { Region1D, Region2D, RegionError };

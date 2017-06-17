@@ -897,6 +897,56 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// Region2D.translate()
+
+	describe('Region2D.translate()', function() {
+		it('does nothing to an empty region', function() {
+			assert.deepEqual(Region2D.empty.translate(10, 10).getRects(), Region2D.empty.getRects());
+		});
+
+		it('can move a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.translate(10, 20).getRects(), makeRects([11, 22, 13, 24]));
+		});
+
+		it('can negatively move a simple rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.translate(-10, -20).getRects(), makeRects([-9, -18, -7, -16]));
+		});
+
+		it('can move a complex region made from multiple rectangles', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.deepEqual(region.translate(10, 20).getRects(), makeRects([
+				11, 22, 15, 24,
+				11, 24, 17, 26,
+				13, 26, 17, 28
+			]));
+		});
+
+		it('fails if the new region\'s points overlap or reach infinity', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { region.translate(pInf, 0); });
+			assert.throws(function() { region.translate(0, pInf); });
+			assert.throws(function() { region.translate(nInf, 0); });
+			assert.throws(function() { region.translate(0, nInf); });
+			assert.throws(function() { region.translate(10e+53, 0); });
+			assert.throws(function() { region.translate(0, 10e+53); });
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// Region2D.fromRects()
 
 	describe('Region2D.fromRects()', function() {

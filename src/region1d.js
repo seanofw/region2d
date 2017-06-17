@@ -1,4 +1,17 @@
 /**
+ * First, a custom error type for regions, to make tracking and logging errors easier.
+ */
+function RegionError(message) {
+	this.message = (this.name = "RegionError") + ": " + message;
+	const stackPieces = String((new Error()).stack).split('\n');
+	stackPieces.shift();
+	stackPieces.shift();
+	this.stack = stackPieces.join('\n');
+	this.toString = function() { return this.message; };
+};
+RegionError.prototype = Object.create ? Object.create(Error.prototype) : new Error;
+
+/**
  * Region1D objects are semi-opaque data structures that represent a 1-dimensional
  * set on the number line, described using "spans" of included points.
  *
@@ -60,6 +73,8 @@ const Region1D = (function() {
 	pInf = Number.POSITIVE_INFINITY,
 	nInf = Number.NEGATIVE_INFINITY,
 
+	regionError = RegionError,
+
 	//---------------------------------------------------------------------------------------------
 	// Helper functions.
 
@@ -70,7 +85,7 @@ const Region1D = (function() {
 	makeProtectedData = function(protectedData, expectedKey) {
 		return function(actualKey) {
 			if (actualKey === expectedKey) return protectedData;
-			else throw "Illegal access";
+			else throw new regionError("Illegal access");
 		};
 	},
 
@@ -348,10 +363,10 @@ const Region1D = (function() {
 	transformData = function(array, ratio, delta) {
 		delta = Number(delta);
 		if (!(nInf < delta && delta < pInf))	// Catches other NaNs as well as infinities.
-			throw "Invalid translation delta";
+			throw new regionError("Invalid translation delta");
 		ratio = Number(ratio);
 		if (!(nInf < ratio && ratio < pInf) || ratio === 0)		// Catches other NaNs as well as infinities.
-			throw "Invalid scale ratio";
+			throw new regionError("Invalid scale ratio");
 
 		const newArray = [];
 		for (let i = 0, l = array.length; i < l; i++) {
@@ -426,8 +441,7 @@ const Region1D = (function() {
 	 */
 	verifyRegion1DType = function(obj) {
 		if (!(obj instanceof Region1D)) {
-			console.error("Object must be a Region1D instance.");
-			throw "Type error";
+			throw new regionError("Object must be a Region1D instance.");
 		}
 	},
 	
@@ -437,15 +451,12 @@ const Region1D = (function() {
 	 */
 	validateData = function(array) {
 	
-		const typeError = "Type error";
 		const typeErrorMsg = "Expected an ordered array of numeric start/end pairs.";
-		const dataError = "Data error";
 		const dataErrorMsg = "Array start/end pairs are not in strictly ascending order.";
 
 		// Make sure it's an array of even length.
 		if (!isArray(array) || (array.length & 1)) {
-			console.error(typeErrorMsg);
-			throw typeError;
+			throw new regionError(typeErrorMsg);
 		}
 
 		// Empty array is always valid.
@@ -454,8 +465,7 @@ const Region1D = (function() {
 		// Get the first entry, and make sure it's a number.
 		let prev = array[0];
 		if (typeof prev !== 'number') {
-			console.error(typeErrorMsg);
-			throw typeError;
+			throw new regionError(typeErrorMsg);
 		}
 
 		// Check each successive entry to make sure that it's (A) a number and (B) strictly
@@ -463,12 +473,10 @@ const Region1D = (function() {
 		for (let i = 1, l = array.length; i < l; i++) {
 			let cur = array[i];
 			if (typeof cur !== 'number') {
-				console.error(typeErrorMsg);
-				throw typeError;
+				throw new regionError(typeErrorMsg);
 			}
 			if (cur <= prev) {
-				console.error(dataErrorMsg);
-				throw dataError;
+				throw new regionError(dataErrorMsg);
 			}
 			prev = cur;
 		}
@@ -488,7 +496,7 @@ const Region1D = (function() {
 	 */
 	getData = function(region) {
 		return region._opaque(privateKey);
-	},
+	};
 
 	/**
 	 * Construct a 1-D region from the given array of start/end X coordinates.  This is a
@@ -500,7 +508,7 @@ const Region1D = (function() {
 	 * @param array {Array} - The array of span endpoints, in pairs of start (inclusive)
 	 *        and end (exclusive) X-coordinates.
 	 */
-	Region1D = function(array, key, hash) {
+	function Region1D(array, key, hash) {
 	
 		// Internal-only second parameter: A 'key' flag, indicating this data came from an
 		// internal operation and does not require validation for correctness.
@@ -512,7 +520,7 @@ const Region1D = (function() {
 		}
 		else if (typeof key !== 'undefined' || typeof hash !== 'undefined') {
 			// You're not allowed to specify a key unless it's the right one.
-			throw "Illegal access";
+			throw new regionError("Illegal access");
 		}
 		else {
 			// Verify that the user passed us data that makes sense.
@@ -617,3 +625,4 @@ const Region1D = (function() {
 })();
 
 export default Region1D;
+export { RegionError, Region1D };
