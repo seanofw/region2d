@@ -878,8 +878,7 @@ const Region2D = (function() {
 	/**
 	 * Get a copy of the raw row data.
 	 */
-	getRawRows = function(data) {
-		const srcArray = data.array;
+	getRawRows = function(srcArray) {
 		const destArray = [];
 		for (let i = 0, l = srcArray.length; i < l; i++) {
 			const src = srcArray[i];
@@ -1159,7 +1158,7 @@ const Region2D = (function() {
 	 *    of that row, and the 'minY' of each row must be greater than or equal to the 'maxY' of
 	 *    the previous row.  Each row's Region1D must also be nonempty.
 	 */
-	Region2D.fromRows = function(rows) {
+	Region2D.fromRawRows = function(rows) {
 		return new Region2D(makeDataFromRows(rows), privateKey);
 	};
 

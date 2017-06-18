@@ -2,6 +2,7 @@
 var assert = require('assert');
 
 var Region2D = require('../lib/region2d.js').default;
+var Region1D = require('../lib/region1d.js').default;
 
 var
 	/**
@@ -307,6 +308,13 @@ describe('Region2D', function() {
 				2, 2, 8, 8,
 			]));
 		});
+
+		it('fails if the other region is not a Region2D', function() {
+			var r = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { r.union(true); });
+			assert.throws(function() { r.union([2, 3, 4, 5]); });
+			assert.throws(function() { r.union(["2, 3, 4, 5"]); });
+		});
 	});
 
 	//---------------------------------------------------------------------------------------------
@@ -475,6 +483,13 @@ describe('Region2D', function() {
 				2, 5, 3, 8
 			]));
 		});
+
+		it('fails if the other region is not a Region2D', function() {
+			var r = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { r.intersect(true); });
+			assert.throws(function() { r.intersect([2, 3, 4, 5]); });
+			assert.throws(function() { r.intersect(["2, 3, 4, 5"]); });
+		});
 	});
 
 	//---------------------------------------------------------------------------------------------
@@ -640,6 +655,13 @@ describe('Region2D', function() {
 				2, 6, 5, 7,
 				2, 7, 8, 8,
 			]));
+		});
+
+		it('fails if the other region is not a Region2D', function() {
+			var r = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { r.subtract(true); });
+			assert.throws(function() { r.subtract([2, 3, 4, 5]); });
+			assert.throws(function() { r.subtract(["2, 3, 4, 5"]); });
 		});
 	});
 
@@ -830,6 +852,13 @@ describe('Region2D', function() {
 				7, 6, 8, 7,
 				2, 7, 8, 8,
 			]));
+		});
+
+		it('fails if the other region is not a Region2D', function() {
+			var r = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { r.xor(true); });
+			assert.throws(function() { r.xor([2, 3, 4, 5]); });
+			assert.throws(function() { r.xor(["2, 3, 4, 5"]); });
 		});
 	});
 
@@ -1639,6 +1668,100 @@ describe('Region2D', function() {
 				[ 1, 2, 5, 6 ],
 			]);
 			assert.equal(region.isRectangular(), false);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #getCount()
+
+	describe('#getCount()', function() {
+		it('returns 0 for an empty set', function() {
+			assert.equal(Region2D.empty.getCount(), 0);
+			assert.equal(new Region2D().getCount(), 0);
+			assert.equal(Region2D.infinite.not().getCount(), 0);
+		});
+
+		it('returns 1 for any set with four "edges"', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).getCount(), 1);
+			assert.equal(Region2D.infinite.getCount(), 1);
+			assert.equal(Region2D.empty.not().getCount(), 1);
+			assert.equal(new Region2D([1, 2, 3, pInf]).getCount(), 1);
+			assert.equal(new Region2D([1, 2, pInf, 4]).getCount(), 1);
+			assert.equal(new Region2D([1, nInf, 3, 4]).getCount(), 1);
+			assert.equal(new Region2D([nInf, 2, 3, 4]).getCount(), 1);
+		});
+
+		it('returns the count of rectangles in complex regions', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).not().getCount(), 4);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.getCount(), 3);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #getHashCode()
+
+	describe('#getHashCode()', function() {
+		it('returns 0 for an empty set', function() {
+			assert.equal(Region2D.empty.getHashCode(), 0);
+			assert.equal(new Region2D().getHashCode(), 0);
+			assert.equal(Region2D.infinite.not().getHashCode(), 0);
+		});
+
+		it('returns a 1-D hash code for any rectangle', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).getHashCode(), 26);
+			assert.equal(new Region2D([1, 4, 3, 6]).getHashCode(), 26);
+		});
+
+		it('returns a complex hash code for a complex region', function() {
+			//   1234567
+			// 1
+			// 2 BBBB		// HashA = (1)*23 + 5
+			// 3 BBBB
+			// 4 BB**AA		// HashB = (1)*23 + 7
+			// 5 BB**AA
+			// 6   AAAA		// HashC = (3)*23 + 7
+			// 7   AAAA
+			// 8
+			var hashA = 23+5, hashB = 23+7, hashC = 3*23+7;
+			var expectedResult = ((hashA)*23 + hashB)*23 + hashC;
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.getHashCode(), expectedResult);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #getRawRows()
+
+	describe('#getRawRows()', function() {
+		it('returns nothing for an empty region', function() {
+			var rawRows = Region2D.empty.getRawRows();
+			assert.deepEqual(rawRows, []);
+		});
+
+		it('returns raw row data for a region', function() {
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			var rawRows = region.getRawRows();
+			assert.equal(rawRows.length, 3);
+			assert.equal(rawRows[0].minY, 2);
+			assert.equal(rawRows[0].maxY, 4);
+			assert.equal(rawRows[0].region.equals(new Region1D([1, 5])), true);
+			assert.equal(rawRows[1].minY, 4);
+			assert.equal(rawRows[1].maxY, 6);
+			assert.equal(rawRows[1].region.equals(new Region1D([1, 7])), true);
+			assert.equal(rawRows[2].minY, 6);
+			assert.equal(rawRows[2].maxY, 8);
+			assert.equal(rawRows[2].region.equals(new Region1D([3, 7])), true);
 		});
 	});
 
