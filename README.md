@@ -16,10 +16,6 @@ This is a JavaScript implementation of the Region abstract data type, which 2-D 
 
 
 
-**WARNING: CURRENT STATUS: BETA.**  Many operations work (see the demo!) but some operations are untested, and some don't work at all yet.  Unit test coverage is at ~90% for `Region1d`, but only about 50% for `Region2d`.  Use at your own risk.
-
-
-
 ### Features
 
 Notable features of this implementation include:
