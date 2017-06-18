@@ -1878,6 +1878,45 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// #fromRawRows()
+
+	describe('#fromRawRows()', function() {
+		it('can construct a region from raw row data', function() {
+			var rawRows = [
+				{ region: new Region1D([1, 5]), minY: 2, maxY: 4 },
+				{ region: new Region1D([1, 7]), minY: 4, maxY: 6 },
+				{ region: new Region1D([3, 7]), minY: 6, maxY: 8 }
+			];
+			var region = Region2D.fromRawRows(rawRows);
+			var region2 = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.equals(region2), true);
+
+			assert.equal(Region2D.empty.equals(Region2D.fromRawRows([])), true);
+		});
+
+		it('cannot construct a region from invalid raw row data', function() {
+			// Can't have empty rows.
+			var rawRows = [
+				{ region: new Region1D([1, 5]), minY: 2, maxY: 4 },
+				{ region: Region1D.empty, minY: 4, maxY: 6 },
+				{ region: new Region1D([3, 7]), minY: 6, maxY: 8 }
+			];
+			assert.throws(function() { Region2D.fromRawRows(rawRows); });
+
+			// Can't have rows out of order.
+			var rawRows = [
+				{ region: new Region1D([1, 5]), minY: 2, maxY: 4 },
+				{ region: new Region1D([3, 5]), minY: 6, maxY: 8 },
+				{ region: new Region1D([3, 7]), minY: 4, maxY: 6 }
+			];
+			assert.throws(function() { Region2D.fromRawRows(rawRows); });
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// #_opaque()
 
 	describe('#_opaque()', function() {

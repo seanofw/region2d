@@ -845,6 +845,8 @@ const Region2D = (function() {
 			hash *= 23;
 			hash += band.region.getHashCode() | 0;
 			hash &= ~0;
+
+			prevMax = band.maxY;
 		}
 
 		// Create the region data from the resulting rows and the metadata.
