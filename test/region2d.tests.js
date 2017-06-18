@@ -1075,6 +1075,178 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// Region2D.getPath()
+
+	describe('Region2D.getPath()', function() {
+		it('generates no output for an empty region', function() {
+			assert.deepEqual(Region2D.empty.getPath(), []);
+		});
+
+		it('generates a four-edge polygon for a rectangle', function() {
+			var region = new Region2D([1, 2, 3, 4]);
+			assert.deepEqual(region.getPath(), [ [
+				{ x:1, y:2 },
+				{ x:3, y:2 },
+				{ x:3, y:4 },
+				{ x:1, y:4 }
+			] ]);
+		});
+
+		it('can render a polygon for a region of multiple rectangles', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.deepEqual(region.getPath(), [ [
+				{ x:1, y:2 },
+				{ x:5, y:2 },
+				{ x:5, y:4 },
+				{ x:7, y:4 },
+				{ x:7, y:8 },
+				{ x:3, y:8 },
+				{ x:3, y:6 },
+				{ x:1, y:6 }
+			] ]);
+		});
+
+		it('can render a polygon for a horizontally-disjoint region', function() {
+			//   12345678901234
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA  CCCCC
+			// 5 BB**AA  **C**
+			// 6   AAAA  DD EE
+			// 7   AAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+				[ 9, 14, 14, 16 ],
+				[ 9, 15, 11, 17 ],
+				[ 12, 15, 14, 17 ],
+			]);
+			assert.deepEqual(region.getPath(), [
+				[
+					{ x:1, y:2 },
+					{ x:5, y:2 },
+					{ x:5, y:4 },
+					{ x:7, y:4 },
+					{ x:7, y:8 },
+					{ x:3, y:8 },
+					{ x:3, y:6 },
+					{ x:1, y:6 }
+				],
+				[
+					{ x:9, y:14 },
+					{ x:14, y:14 },
+					{ x:14, y:17 },
+					{ x:12, y:17 },
+					{ x:12, y:16 },
+					{ x:11, y:16 },
+					{ x:11, y:17 },
+					{ x:9, y:17 }
+				]
+			]);
+		});
+
+		it('can render a polygon with a hole in it', function() {
+			//   12345678901234
+			// 1
+			// 2 BBBBBB
+			// 3 BBBBBB
+			// 4 CC  DD
+			// 5 CC  DD
+			// 6 AAAAAA
+			// 7 AAAAAA
+			// 8
+			var region = Region2D.fromRects([
+				[ 1, 6, 7, 8 ],
+				[ 1, 2, 7, 4 ],
+				[ 1, 4, 3, 6 ],
+				[ 5, 4, 7, 6 ]
+			]);
+			assert.deepEqual(region.getPath(), [
+				[
+					{ x:1, y:2 },
+					{ x:7, y:2 },
+					{ x:7, y:8 },
+					{ x:1, y:8 }
+				],
+				[
+					{ x:3, y:6 },
+					{ x:5, y:6 },
+					{ x:5, y:4 },
+					{ x:3, y:4 }
+				]
+			]);
+		});
+
+		it('can render separate polygons when points adjoin', function() {
+			//   12345678901234
+			// 1
+			// 2 AAAA    CCCC
+			// 3 AAAA    CCCC
+			// 4 AAAA    CCCC
+			// 5     BBBB
+			// 6     BBBB
+			// 7     BBBB
+			// 8 DDDD    EEEE
+			// 9 DDDD    EEEE
+			// 0 DDDD    EEEE
+			// 1
+			var region = Region2D.fromRects([
+				[ 1, 2, 5, 5 ],
+				[ 5, 5, 9, 8 ],
+				[ 9, 2, 13, 5 ],
+				[ 1, 8, 5, 11 ],
+				[ 9, 8, 13, 11 ]
+			]);
+			assert.deepEqual(region.getPath(), [
+				[
+					{ x:1, y:2 },
+					{ x:5, y:2 },
+					{ x:5, y:5 },
+					{ x:1, y:5 }
+				],
+				[
+					{ x:9, y:2 },
+					{ x:13, y:2 },
+					{ x:13, y:5 },
+					{ x:9, y:5 }
+				],
+				[
+					{ x:5, y:5 },
+					{ x:9, y:5 },
+					{ x:9, y:8 },
+					{ x:5, y:8 }
+				],
+				[
+					{ x:1, y:8 },
+					{ x:5, y:8 },
+					{ x:5, y:11 },
+					{ x:1, y:11 }
+				],
+				[
+					{ x:9, y:8 },
+					{ x:13, y:8 },
+					{ x:13, y:11 },
+					{ x:9, y:11 }
+				]
+			]);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// Region2D.isPointIn()
 
 	describe('Region2D.isPointIn()', function() {

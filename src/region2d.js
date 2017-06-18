@@ -674,7 +674,6 @@ const Region2D = (function() {
 	
 	//---------------------------------------------------------------------------------------------
 	// Region miscellaneous support.
-
 	
 	/**
 	 * Calculate a new region whose coordinates have all been translated/scaled by the given amounts.
