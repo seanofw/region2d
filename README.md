@@ -29,6 +29,7 @@ Notable features of this implementation include:
 - Infinite and empty regions
 - Unit test coverage
 - Data structures that are both opaque and immutable (i.e., _safe_)
+- Only 4 KB minified and gzipped!
 
 
 
@@ -36,7 +37,7 @@ Notable features of this implementation include:
 
 **Vanilla JavaScript in the Browser:**
 
-- Download a copy of [region.js](plain/region.js) or [region.min.js](plain/region.min.js)  This UMD bundle includes both Region types.
+- Download a copy of [region.js](plain/region.js) or [region.min.js](plain/region.min.js)  This plain-JavaScript bundle includes both Region types.  The minified bundle is 13 KB uncompressed, and only about 4 KB gzipped.
 - Include `<script src="region.js"></script>` in your page.  This will introduce three new global types, `Region1D`, `Region2D`, and `RegionError`.
 
 **For NodeJS and NPM:**
