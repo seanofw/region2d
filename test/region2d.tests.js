@@ -1378,6 +1378,98 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// Region2D.equals()
+
+	describe('Region2D.equals()', function() {
+		it('returns true when an empty set matches an empty set', function() {
+			assert.equal(Region2D.empty.equals(new Region2D()), true);
+			assert.equal(Region2D.empty.equals(new Region2D([1, 2, 3, 4])), false);
+		});
+
+		it('returns true when a set matches itself', function() {
+			assert.equal(Region2D.empty.equals(Region2D.empty), true);
+
+			var r1 = new Region2D([1, 2, 3, 4]);
+			assert.equal(r1.equals(r1), true);
+
+			var r2 = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(r2.equals(r2), true);
+		});
+
+		it('returns true when sets are the same', function() {
+			var re1 = new Region2D();
+			var re2 = new Region2D();
+			assert.equal(re1.equals(re2), true);
+
+			var rr1 = new Region2D([1, 2, 3, 4]);
+			var rr2 = new Region2D([1, 2, 3, 4]);
+			assert.equal(rr1.equals(rr2), true);
+
+			var rc1 = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			var rc2 = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(rc1.equals(rc2), true);
+
+			var rd1 = Region2D.fromRects([
+				[ 3, 2, 7, 6 ],
+				[ 1, 4, 5, 8 ],
+			]);
+			var rd2 = Region2D.fromRects([
+				[ 3, 2, 7, 6 ],
+				[ 1, 4, 5, 8 ],
+			]);
+			assert.equal(rd1.equals(rd2), true);
+		});
+
+		it('returns false when sets are different', function() {
+			var re = new Region2D();
+			var rr = new Region2D([1, 2, 3, 4]);
+			var rc = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			var rd = Region2D.fromRects([
+				[ 3, 2, 7, 6 ],
+				[ 1, 4, 5, 8 ],
+			]);
+
+			assert.equal(re.equals(rr), false);
+			assert.equal(re.equals(rc), false);
+			assert.equal(re.equals(rd), false);
+			assert.equal(rr.equals(re), false);
+			assert.equal(rr.equals(rc), false);
+			assert.equal(rr.equals(rd), false);
+			assert.equal(rc.equals(re), false);
+			assert.equal(rc.equals(rr), false);
+			assert.equal(rc.equals(rd), false);
+			assert.equal(rd.equals(re), false);
+			assert.equal(rd.equals(rr), false);
+			assert.equal(rd.equals(rc), false);
+		});
+
+		it('returns false when sets are different, even if the hashes are the same', function() {
+			var ra = new Region2D([0, 0, 1, 2]);
+			var rb = new Region2D([-1, 0, 24, 2]);
+			var rc = new Region2D([0, 2, 1, 4]);
+
+			assert.equal(ra.equals(rb), false);
+			assert.equal(ra.equals(rc), false);
+			assert.equal(rb.equals(ra), false);
+			assert.equal(rb.equals(rc), false);
+			assert.equal(rc.equals(ra), false);
+			assert.equal(rc.equals(rb), false);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// Region2D.fromRects()
 
 	describe('Region2D.fromRects()', function() {
@@ -1408,6 +1500,145 @@ describe('Region2D', function() {
 				1, 4, 7, 6,
 				3, 6, 7, 8
 			]));
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #isEmpty()
+
+	describe('#isEmpty()', function() {
+		it('returns true for an empty set', function() {
+			assert.equal(Region2D.empty.isEmpty(), true);
+			assert.equal(new Region2D().isEmpty(), true);
+			assert.equal(Region2D.infinite.not().isEmpty(), true);
+		});
+
+		it('returns false for any nonempty set', function() {
+			assert.equal(Region2D.empty.not().isEmpty(), false);
+			assert.equal(new Region2D([1, 2, 3, 4]).isEmpty(), false);
+			assert.equal(Region2D.infinite.isEmpty(), false);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.isEmpty(), false);
+			assert.equal(region.not().isEmpty(), false);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #isInfinite()
+
+	describe('#isInfinite()', function() {
+		it('returns false for an empty set', function() {
+			assert.equal(Region2D.empty.isInfinite(), false);
+			assert.equal(new Region2D().isInfinite(), false);
+			assert.equal(Region2D.infinite.not().isInfinite(), false);
+		});
+
+		it('returns false for any finite set', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).isInfinite(), false);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.isInfinite(), false);
+		});
+
+		it('returns true for any set that encompasses the entire plane', function() {
+			assert.equal(Region2D.infinite.isInfinite(), true);
+			assert.equal(Region2D.empty.not().isInfinite(), true);
+			assert.equal(new Region2D().not().isInfinite(), true);
+		});
+
+		it('returns true for a set that touches any infinity', function() {
+			assert.equal(new Region2D([1, 2, 3, pInf]).isInfinite(), true);
+			assert.equal(new Region2D([1, 2, pInf, 4]).isInfinite(), true);
+			assert.equal(new Region2D([1, nInf, 3, 4]).isInfinite(), true);
+			assert.equal(new Region2D([nInf, 2, 3, 4]).isInfinite(), true);
+
+			assert.equal(new Region2D([1, 2, 3, 4]).not().isInfinite(), true);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.not().isInfinite(), true);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #isFinite()
+
+	describe('#isFinite()', function() {
+		it('returns true for an empty set', function() {
+			assert.equal(Region2D.empty.isFinite(), true);
+			assert.equal(new Region2D().isFinite(), true);
+			assert.equal(Region2D.infinite.not().isFinite(), true);
+		});
+
+		it('returns true for any finite set', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).isFinite(), true);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.isFinite(), true);
+		});
+
+		it('returns false for any set that encompasses the entire plane', function() {
+			assert.equal(Region2D.infinite.isFinite(), false);
+			assert.equal(Region2D.empty.not().isFinite(), false);
+			assert.equal(new Region2D().not().isFinite(), false);
+		});
+
+		it('returns false for a set that touches any infinity', function() {
+			assert.equal(new Region2D([1, 2, 3, pInf]).isFinite(), false);
+			assert.equal(new Region2D([1, 2, pInf, 4]).isFinite(), false);
+			assert.equal(new Region2D([1, nInf, 3, 4]).isFinite(), false);
+			assert.equal(new Region2D([nInf, 2, 3, 4]).isFinite(), false);
+
+			assert.equal(new Region2D([1, 2, 3, 4]).not().isFinite(), false);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.not().isFinite(), false);
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
+	// #isRectangular()
+
+	describe('#isRectangular()', function() {
+		it('returns false for an empty set', function() {
+			assert.equal(Region2D.empty.isRectangular(), false);
+			assert.equal(new Region2D().isRectangular(), false);
+			assert.equal(Region2D.infinite.not().isRectangular(), false);
+		});
+
+		it('returns true for any set with four "edges"', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).isRectangular(), true);
+			assert.equal(Region2D.infinite.isRectangular(), true);
+			assert.equal(Region2D.empty.not().isRectangular(), true);
+			assert.equal(new Region2D([1, 2, 3, pInf]).isRectangular(), true);
+			assert.equal(new Region2D([1, 2, pInf, 4]).isRectangular(), true);
+			assert.equal(new Region2D([1, nInf, 3, 4]).isRectangular(), true);
+			assert.equal(new Region2D([nInf, 2, 3, 4]).isRectangular(), true);
+		});
+
+		it('returns false for any set that requires multiple rectangles to represent', function() {
+			assert.equal(new Region2D([1, 2, 3, 4]).not().isRectangular(), false);
+
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+			]);
+			assert.equal(region.isRectangular(), false);
 		});
 	});
 

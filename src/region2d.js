@@ -918,7 +918,9 @@ const Region2D = (function() {
 	arrayEquals = function(array1, array2) {
 		if (array1.length != array2.length) return false;
 		for (let i = 0, l = array1.length; i < l; i++) {
-			if (!array1[i].equals(array2[i])) return false;
+			if (array1[i].minY !== array2[i].minY
+				|| array1[i].maxY !== array2[i].maxY) return false;
+			if (!array1[i].region.equals(array2[i].region)) return false;
 		}
 		return true;
 	},
@@ -1098,7 +1100,8 @@ const Region2D = (function() {
 		equals: function(other) {
 			verifyRegion2DType(other);
 			const data = getData(this), otherData = getData(other);
-			if (data.hash != otherData.hash
+			if (data === otherData) return true;
+			if (data.hash !== otherData.hash
 				|| data.count !== otherData.count) return false;
 			return arrayEquals(data.array, otherData.array);
 		},

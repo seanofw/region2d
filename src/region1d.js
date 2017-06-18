@@ -380,9 +380,9 @@ const Region1D = (function() {
 	 * Returns true if they are the same, false if they are different.
 	 */
 	arrayEquals = function(array1, array2) {
-		if (array1.length != array2.length) return false;
+		if (array1.length !== array2.length) return false;
 		for (let i = 0, l = array1.length; i < l; i++) {
-			if (array1[i] != array2[i]) return false;
+			if (array1[i] !== array2[i]) return false;
 		}
 		return true;
 	},
@@ -596,7 +596,8 @@ const Region1D = (function() {
 		equals: function(other) {
 			verifyRegion1DType(other);
 			const data = getData(this), otherData = getData(other);
-			if (data.hash != otherData.hash) return false;
+			if (data === otherData) return true;
+			if (data.hash !== otherData.hash) return false;
 			return arrayEquals(data.array, otherData.array);
 		},
 		getRawSpans: function() {
