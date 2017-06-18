@@ -1091,7 +1091,7 @@ const Region2D = (function() {
 		},
 		doesIntersect: function(other) {
 			verifyRegion2DType(other);
-			return doesIntersectData(getData(this));
+			return doesIntersectData(getData(this), getData(other));
 		},
 		isPointIn: function(x, y) {
 			return isPointInData(getData(this), Number(x), Number(y));

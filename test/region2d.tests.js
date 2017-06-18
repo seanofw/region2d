@@ -1672,6 +1672,118 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// #doesIntersect()
+
+	describe('#doesIntersect()', function() {
+		it('can test two rectangular regions, with an above/below relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 ****
+			// 5 ****
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			assert.equal(a.doesIntersect(b), true);
+
+			// Inverted case.
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([1, 4, 5, 8]);
+			assert.equal(a.doesIntersect(b), true);
+		});
+
+		it('can test two rectangular regions, with a left/right relationship', function() {
+			//   1234567
+			// 1
+			// 2 AA**BB
+			// 3 AA**BB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6
+			// 7
+			// 8
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 2, 7, 6]);
+			assert.equal(a.doesIntersect(b), true);
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 2, 5, 6]);
+			assert.equal(a.doesIntersect(b), true);
+		});
+
+		it('can test two rectangular regions, with an above-left relationship', function() {
+			//   1234567
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			var a = new Region2D([3, 4, 7, 8]);
+			var b = new Region2D([1, 2, 5, 6]);
+			assert.equal(a.doesIntersect(b), true);
+
+			// Invert them.
+			var a = new Region2D([1, 2, 5, 6]);
+			var b = new Region2D([3, 4, 7, 8]);
+			assert.equal(a.doesIntersect(b), true);
+		});
+
+		it('can test two rectangular regions, with an above-right relationship', function() {
+			//   1234567
+			// 1
+			// 2   BBBB
+			// 3   BBBB
+			// 4 AA**BB
+			// 5 AA**BB
+			// 6 AAAA
+			// 7 AAAA
+			// 8
+			var a = new Region2D([1, 4, 5, 8]);
+			var b = new Region2D([3, 2, 7, 6]);
+			assert.equal(a.doesIntersect(b), true);
+
+			// Invert them.
+			var a = new Region2D([3, 2, 7, 6]);
+			var b = new Region2D([1, 4, 5, 8]);
+			assert.equal(a.doesIntersect(b), true);
+		});
+
+		it('should return false for two disconnected rectangular regions', function() {
+			//   12345678
+			// 1
+			// 2 BBB
+			// 3 BBB
+			// 4 BBB AAA
+			// 5 BBB AAA
+			// 6     AAA
+			// 7     AAA
+			// 8
+			var a = new Region2D([5, 4, 8, 8]);
+			var b = new Region2D([1, 2, 4, 6]);
+			assert.equal(a.doesIntersect(b), false);
+
+			// Invert them.
+			var b = new Region2D([5, 4, 8, 8]);
+			var a = new Region2D([1, 2, 4, 6]);
+			assert.equal(a.doesIntersect(b), false);
+		});
+
+		it('fails if the other region is not a Region2D', function() {
+			var r = new Region2D([1, 2, 3, 4]);
+			assert.throws(function() { r.doesIntersect(true); });
+			assert.throws(function() { r.doesIntersect([2, 3, 4, 5]); });
+			assert.throws(function() { r.doesIntersect(["2, 3, 4, 5"]); });
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// #getCount()
 
 	describe('#getCount()', function() {
