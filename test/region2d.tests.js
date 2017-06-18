@@ -1075,6 +1075,137 @@ describe('Region2D', function() {
 	});
 
 	//---------------------------------------------------------------------------------------------
+	// Region2D.isPointIn()
+
+	describe('Region2D.isPointIn()', function() {
+		it('always returns false for the empty set', function() {
+			assert.equal(Region2D.empty.isPointIn(0, 0), false);
+			assert.equal(Region2D.empty.isPointIn(1, 1), false);
+			assert.equal(Region2D.empty.isPointIn(pInf, pInf), false);
+			assert.equal(Region2D.empty.isPointIn(nInf, nInf), false);
+		});
+
+		it('detects point intersection for one rectangle', function() {
+			var region = Region2D.fromRects([[1, 2, 3, 4]]);
+			assert.equal(region.isPointIn(0, 0), false);
+			assert.equal(region.isPointIn(1, 0), false);
+			assert.equal(region.isPointIn(2, 0), false);
+			assert.equal(region.isPointIn(3, 0), false);
+			assert.equal(region.isPointIn(4, 0), false);
+
+			assert.equal(region.isPointIn(0, 2), false);
+			assert.equal(region.isPointIn(1, 2), true);
+			assert.equal(region.isPointIn(2, 2), true);
+			assert.equal(region.isPointIn(3, 2), false);
+			assert.equal(region.isPointIn(4, 2), false);
+
+			assert.equal(region.isPointIn(0, 3), false);
+			assert.equal(region.isPointIn(1, 3), true);
+			assert.equal(region.isPointIn(2, 3), true);
+			assert.equal(region.isPointIn(3, 3), false);
+			assert.equal(region.isPointIn(4, 3), false);
+
+			assert.equal(region.isPointIn(0, 4), false);
+			assert.equal(region.isPointIn(1, 4), false);
+			assert.equal(region.isPointIn(2, 4), false);
+			assert.equal(region.isPointIn(3, 4), false);
+			assert.equal(region.isPointIn(4, 4), false);
+		});
+
+		it('detects point intersection for a complex disjoint region', function() {
+			//   1234567890
+			// 1
+			// 2 BBBB
+			// 3 BBBB
+			// 4 BB**AA
+			// 5 BB**AA
+			// 6   AAAA
+			// 7   AAAA
+			// 8
+			// 9       CCC
+			// 0       CCC
+			var region = Region2D.fromRects([
+				[ 3, 4, 7, 8 ],
+				[ 1, 2, 5, 6 ],
+				[ 7, 9, 10, 11 ]
+			]);
+
+			// Test above the first band.
+			assert.equal(region.isPointIn(3, 0), false);
+
+			// Test the first band.
+			assert.equal(region.isPointIn(0, 2), false);
+			assert.equal(region.isPointIn(1, 2), true);
+			assert.equal(region.isPointIn(4, 2), true);
+			assert.equal(region.isPointIn(5, 2), false);
+
+			// Test the second band.
+			assert.equal(region.isPointIn(0, 4), false);
+			assert.equal(region.isPointIn(1, 4), true);
+			assert.equal(region.isPointIn(4, 4), true);
+			assert.equal(region.isPointIn(6, 4), true);
+			assert.equal(region.isPointIn(7, 4), false);
+
+			// Test the third band.
+			assert.equal(region.isPointIn(0, 6), false);
+			assert.equal(region.isPointIn(2, 6), false);
+			assert.equal(region.isPointIn(3, 6), true);
+			assert.equal(region.isPointIn(6, 6), true);
+			assert.equal(region.isPointIn(7, 6), false);
+
+			// Test between the third and fourth bands.
+			assert.equal(region.isPointIn(5, 8), false);
+			assert.equal(region.isPointIn(8, 8), false);
+
+			// Test the fourth band.
+			assert.equal(region.isPointIn(6, 9), false);
+			assert.equal(region.isPointIn(7, 9), true);
+			assert.equal(region.isPointIn(9, 9), true);
+			assert.equal(region.isPointIn(10, 9), false);
+
+			// Test below the fourth band.
+			assert.equal(region.isPointIn(7, 11), false);
+			assert.equal(region.isPointIn(9, 11), false);
+		});
+
+		it('detects point intersection a region with a lot of rows', function() {
+			// Make a region with 21 disjoint rows of individual rectangles
+			// that go in sets of threes:  0-1-2, 6-7-8, 12-13-14, etc.
+			var rects = [];
+			for (var i = 0; i <= 20; i++) {
+				rects.push([1, i * 6, 5, i * 6 + 3]);
+			}
+			var region = Region2D.fromRects(rects);
+
+			// Now test every Y coordinate from -1 to 125 to make sure they all
+			// come out as expected.
+			for (var y = -1; y <= 125; y++) {
+				var expectedIn = (y >= 0 && y % 6 < 3);
+				var actualIn = region.isPointIn(3, y);
+				assert.equal(actualIn, expectedIn, `failed at ${y}`);
+			}
+		});
+
+		it('detects point intersection a region with a lot of columns', function() {
+			// Make a region with 21 disjoint columns of individual rectangles
+			// that go in sets of threes:  0-1-2, 6-7-8, 12-13-14, etc.
+			var rects = [];
+			for (var i = 0; i <= 20; i++) {
+				rects.push([i * 6, 1, i * 6 + 3, 5]);
+			}
+			var region = Region2D.fromRects(rects);
+
+			// Now test every X coordinate from -1 to 125 to make sure they all
+			// come out as expected.
+			for (var x = -1; x <= 125; x++) {
+				var expectedIn = (x >= 0 && x % 6 < 3);
+				var actualIn = region.isPointIn(x, 3);
+				assert.equal(actualIn, expectedIn, `failed at ${x}`);
+			}
+		});
+	});
+
+	//---------------------------------------------------------------------------------------------
 	// Region2D.fromRects()
 
 	describe('Region2D.fromRects()', function() {

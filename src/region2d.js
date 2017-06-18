@@ -953,7 +953,7 @@ const Region2D = (function() {
 		
 		if (array.length <= 5) {
 			// Spin over all the rows in a simple linear search.
-			for (let i = 0, l = array.length; i < l; i += 2) {
+			for (let i = 0, l = array.length; i < l; i++) {
 				if (y >= array[i].minY && y < array[i].maxY) {
 					// Found the row.
 					return array[i].region.isPointIn(x);
