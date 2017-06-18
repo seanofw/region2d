@@ -406,10 +406,7 @@ const Region2D = (function() {
 	generateEdges = function(array) {
 		const edges = [];
 
-		if (array.length < 1) {
-			return [];
-		}
-		else if (array.length === 1) {
+		if (array.length === 1) {
 			// Degenerate case: Only one row.
 			const spans = array[0].region.getRawSpans();
 			const y1 = array[0].minY;

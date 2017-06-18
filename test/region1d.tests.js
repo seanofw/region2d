@@ -805,6 +805,7 @@ describe('Region1D', function() {
 			var a = new Region1D([]);
 			var b = new Region1D([]);
 			assert.equal(a.equals(b), true);
+			assert.equal(a.equals(a), true);
 
 			var a = new Region1D([5, 8]);
 			var b = new Region1D([]);
@@ -819,6 +820,7 @@ describe('Region1D', function() {
 			var a = new Region1D([5, 8]);
 			var b = new Region1D([5, 8]);
 			assert.equal(a.equals(b), true);
+			assert.equal(a.equals(a), true);
 
 			var a = new Region1D([1, 2, 3, 4]);
 			var b = new Region1D([0, 13298]);	// Carefully chosen to make the hashes match.
@@ -835,6 +837,7 @@ describe('Region1D', function() {
 			var a = new Region1D([5, 8, 10, 12, 20, 25]);
 			var b = new Region1D([5, 8, 10, 12, 20, 25]);
 			assert.equal(a.equals(b), true);
+			assert.equal(a.equals(a), true);
 
 			var a = new Region1D([5, 8, 10, 13, 20, 25]);
 			var b = new Region1D([5, 8, 10, 12, 20, 25]);
@@ -845,6 +848,7 @@ describe('Region1D', function() {
 			var a = new Region1D([Number.NEGATIVE_INFINITY, 8]);
 			var b = new Region1D([Number.NEGATIVE_INFINITY, 8]);
 			assert.equal(a.equals(b), true);
+			assert.equal(a.equals(a), true);
 
 			var a = new Region1D([Number.NEGATIVE_INFINITY, 10]);
 			var b = new Region1D([Number.NEGATIVE_INFINITY, 8]);
@@ -857,6 +861,7 @@ describe('Region1D', function() {
 			var a = new Region1D([8, Number.POSITIVE_INFINITY]);
 			var b = new Region1D([8, Number.POSITIVE_INFINITY]);
 			assert.equal(a.equals(b), true);
+			assert.equal(a.equals(a), true);
 
 			var a = new Region1D([7, Number.POSITIVE_INFINITY]);
 			var b = new Region1D([8, Number.POSITIVE_INFINITY]);
