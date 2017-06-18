@@ -36,8 +36,8 @@ Notable features of this implementation include:
 
 **Vanilla JavaScript in the Browser:**
 
-- Download a copy of [region.js](umd/region.js) or [region.min.js](umd/region.min.js)  This UMD bundle includes both Region types.
-- Include `<script src="region.js"></script>` in your page.  This will introduce two new global types, `Region1D` and `Region2D`.
+- Download a copy of [region.js](plain/region.js) or [region.min.js](plain/region.min.js)  This UMD bundle includes both Region types.
+- Include `<script src="region.js"></script>` in your page.  This will introduce three new global types, `Region1D`, `Region2D`, and `RegionError`.
 
 **For NodeJS and NPM:**
 
@@ -45,7 +45,7 @@ In NodeJS or a CommonJS environment, install the `region2d` package, and then us
 
 - `import Region2D from "region2d";`  (ES6)
     or
-- `import { Region1D, Region2D } from "region2d";`  (ES6)
+- `import { Region1D, Region2D, RegionError } from "region2d";`  (ES6)
     or
 - `var Region2D = require('region2d');`  (in classic JavaScript)
 
@@ -58,10 +58,17 @@ A `Region2D` is an opaque object that represents a set of points in the 2-D plan
 **Construction:**
 
 ```
+// Normal construction:
 var myRegion = new Region2D([x, y, width, height]);
 var myRegion = new Region2D({ x:, y:, width:, height: });
 var myRegion = new Region2D({ left:, top:, right:, bottom: });
 var myRegion = new Region2D(htmlElement);
+
+// Creation by unioning many rectangles:
+var myRegion = Region2D.fromRects([ ...array of rectangles... ]);
+
+// Fast creation using raw row data:
+var myRegion = Region2D.fromRawRows([ ...array of raw row data... ]);
 ```
 
 There are several ways to construct a `Region2D` instance, as depicted above:
@@ -69,7 +76,9 @@ There are several ways to construct a `Region2D` instance, as depicted above:
 - You can create a `Region2D` from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost `x`, topmost `y`, its `width`, and its `height`, in that order.
 - You can create a `Region2D` from any object with numeric `x`, `y`, `width`, and `height` properties.
 - You can create a `Region2D` from any object with numeric `left`, `top`, `right`, and `bottom` properties.
-- And, in browser environments, you can pass in an `HTMLElement` instance (a DOM element) to construct a region from its bounding box (page-relative).
+- In browser environments, you can pass in an `HTMLElement` instance (a DOM element) to construct a region from its bounding box (page-relative).
+- There is also a helper that creates regions from arrays of many rectangles.
+- There is another high-speed helper that creates regions from raw row data.
 
 However the rectangle is represented, `Region2D` always follows the following rules, both for rectangles used as input to it and for those that it produces as output:
 
@@ -121,7 +130,7 @@ var arrayOfRects = myRegion.getRects();         // Returns a copy, not the origi
 var rect = myRegion.getBounds();                // O(1)
 var arrayOfPolygons = myRegion.getPath();       // Array of arrays of {x:,y:} points.
 var hashCode = myRegion.getHashCode();          // O(1)
-```
+var rawRows = myRegion.getRawRows();            // O(n), where n is the number of rows.
 
 **Static instances:**
 
