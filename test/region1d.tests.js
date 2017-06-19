@@ -157,7 +157,7 @@ describe('Region1D', function() {
 			assert.deepEqual(result.getRawSpans(), [Number.NEGATIVE_INFINITY, 10, 20, Number.POSITIVE_INFINITY]);
 		});
 
-		it('disallows non-Region1d inputs', function() {
+		it('disallows non-Region1D inputs', function() {
 			var a = new Region1D([8, 12, 13, 16, 18, 25]);
 			assert.throws(function() { a.union({start: 3, end: 5}); });
 			assert.throws(function() { a.union("3, 5"); });

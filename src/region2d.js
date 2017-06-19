@@ -1010,8 +1010,8 @@ const Region2D = (function() {
 	 * Construct a 2-D region either from either nothing or from the given rectangle.
 	 * 
 	 * Usage:
-	 *     var empty = new Region2d();
-	 *     var rectRegion = new Region2d(rect);
+	 *     var empty = new Region2D();
+	 *     var rectRegion = new Region2D(rect);
 	 * 
 	 * The rectangle may be expressed as any of the following three forms:
 	 *     - An object with { x:, y:, width:, height: } properties.
@@ -1019,7 +1019,7 @@ const Region2D = (function() {
 	 *     - An array with [x, y, width, height] values.
 	 * 
 	 * Alternative internal invocation:
-	 *     var region = new Region2d(regionData, privateKey);
+	 *     var region = new Region2D(regionData, privateKey);
 	 */
 	function Region2D(rect, key) {
 		const data = (key === privateKey) ? rect
@@ -1060,7 +1060,7 @@ const Region2D = (function() {
 		},
 		not: function() {
 			// Lazy implementation of 'not': Simply 'xor' with an infinite region.
-			// A better implementation would take advantage of the efficient Region1d#not() method.
+			// A better implementation would take advantage of the efficient Region1D#not() method.
 			const data = getData(this), otherData = getData(infinite);
 			return new Region2D(xorData(data.array, otherData.array), privateKey);
 		},
