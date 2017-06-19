@@ -18,7 +18,7 @@ A `Region2D` is an opaque object that represents a set of points in the 2-D plan
 
 ```
 // Normal construction:
-var myRegion = new Region2D([x, y, width, height]);
+var myRegion = new Region2D([x1, y1, x2, y2]);
 var myRegion = new Region2D({ x:, y:, width:, height: });
 var myRegion = new Region2D({ left:, top:, right:, bottom: });
 var myRegion = new Region2D(htmlElement);
@@ -32,7 +32,7 @@ var myRegion = Region2D.fromRawRows([ ...array of raw row data... ]);
 
 There are several ways to construct a `Region2D` instance, as depicted above:
 
-- You can create a `Region2D` from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost `x`, topmost `y`, its `width`, and its `height`, in that order.
+- You can create a `Region2D` from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost `x1`, topmost `y1`, its leftmost `x2`, and its rightmost `y2`, in that order.
 - You can create a `Region2D` from any object with numeric `x`, `y`, `width`, and `height` properties.
 - You can create a `Region2D` from any object with numeric `left`, `top`, `right`, and `bottom` properties.
 - In browser environments, you can pass in an `HTMLElement` instance (a DOM element) to construct a region from its bounding box (page-relative).

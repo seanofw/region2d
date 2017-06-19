@@ -124,7 +124,7 @@ var myRegion = new Region2D({ x:5, y:10, width:10, height:20 });
 	<p>There are several ways to construct a <code>Region2D</code> from a rectangle:</p>
 
 	<ul>
-		<li>You can create a <code>Region2D</code> from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost <code>x</code>, topmost <code>y</code>, its <code>width</code>, and its <code>height</code>, in that order.</li>
+		<li>You can create a <code>Region2D</code> from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost <code>x1</code>, topmost <code>y1</code>, its rightmost <code>x2</code>, and its bottommost <code>y2</code>, in that order.</li>
 		<li>You can create a <code>Region2D</code> from any object with numeric <code>x</code>, <code>y</code>, <code>width</code>, and <code>height</code> properties.</li>
 		<li>You can create a <code>Region2D</code> from any object with numeric <code>left</code>, <code>top</code>, <code>right</code>, and <code>bottom</code> properties.</li>
 		<li>In browser environments, you can pass in an <code>HTMLElement</code> instance (a DOM element) to construct a region from its bounding box (page-relative).</li>
