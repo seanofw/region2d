@@ -391,9 +391,9 @@ var Region1D = function () {
   * Returns true if they are the same, false if they are different.
   */
 	arrayEquals = function arrayEquals(array1, array2) {
-		if (array1.length != array2.length) return false;
+		if (array1.length !== array2.length) return false;
 		for (var i = 0, l = array1.length; i < l; i++) {
-			if (array1[i] != array2[i]) return false;
+			if (array1[i] !== array2[i]) return false;
 		}
 		return true;
 	},
@@ -616,7 +616,8 @@ var Region1D = function () {
 			verifyRegion1DType(other);
 			var data = getData(this),
 			    otherData = getData(other);
-			if (data.hash != otherData.hash) return false;
+			if (data === otherData) return true;
+			if (data.hash !== otherData.hash) return false;
 			return arrayEquals(data.array, otherData.array);
 		},
 		getRawSpans: function getRawSpans() {
@@ -1053,8 +1054,274 @@ var Region2D = function () {
 
 
 	//---------------------------------------------------------------------------------------------
-	// Region miscellaneous support.
+	// Support for generation of paths/windings.
 
+	/**
+  * Extract the edges of this region.  The edges are fairly-easily extracted from the row data:
+  * All vertical lines in each row are valid edges, and horizontal lines are valid wherever
+  * the XOR with the adjacent row is nonempty.
+  */
+	generateEdges = function generateEdges(array) {
+		var edges = [];
+
+		if (array.length === 1) {
+			// Degenerate case: Only one row.
+			var spans = array[0].region.getRawSpans();
+			var y1 = array[0].minY;
+			var y2 = array[0].maxY;
+			for (var i = 0; i < spans.length; i += 2) {
+				edges.push({ x1: spans[i], y1: y1, x2: spans[i + 1], y2: y1, kind: "top",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i + 1], y1: y1, x2: spans[i + 1], y2: y2, kind: "right",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i + 1], y1: y2, x2: spans[i], y2: y2, kind: "bottom",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: spans[i], y1: y2, x2: spans[i], y2: y1, kind: "left",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+			return edges;
+		} else {
+			// Main case: N rows, N > 1
+
+			// First, emit the top edge(s) and verticals.
+			var _spans = array[0].region.getRawSpans();
+			var _y = array[0].minY;
+			var _y2 = array[0].maxY;
+			for (var _i = 0; _i < _spans.length; _i += 2) {
+				edges.push({ x1: _spans[_i], y1: _y, x2: _spans[_i + 1], y2: _y, kind: "top",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: _spans[_i + 1], y1: _y, x2: _spans[_i + 1], y2: _y2, kind: "right",
+					key1: null, key2: null, next: null, prev: null, used: false });
+				edges.push({ x1: _spans[_i], y1: _y2, x2: _spans[_i], y2: _y, kind: "left",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+
+			// Now handle the interior rows.
+			for (var rowIndex = 1, numRows = array.length; rowIndex < numRows; rowIndex++) {
+
+				_y = array[rowIndex].minY;
+				_y2 = array[rowIndex].maxY;
+
+				if (_y > array[rowIndex - 1].maxY) {
+					// Emit bottom edges for the previous row verbatim, since it doesn't touch this row.
+					for (var _i2 = 0; _i2 < _spans.length; _i2 += 2) {
+						edges.push({ x1: _spans[_i2 + 1], y1: array[rowIndex - 1].maxY, x2: _spans[_i2], y2: array[rowIndex - 1].maxY, kind: "bottom",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+
+					// Emit top edges for this row verbatim, since it doesn't touch the previous row.
+					_spans = array[rowIndex].region.getRawSpans();
+					for (var _i3 = 0; _i3 < _spans.length; _i3 += 2) {
+						edges.push({ x1: _spans[_i3], y1: _y, x2: _spans[_i3 + 1], y2: _y, kind: "top",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+				} else {
+					// Emit bottom edges for the previous row by subtracting away this row.
+					var interiorEdges = array[rowIndex - 1].region.subtract(array[rowIndex].region);
+					_spans = interiorEdges.getRawSpans();
+					for (var _i4 = 0; _i4 < _spans.length; _i4 += 2) {
+						edges.push({ x1: _spans[_i4 + 1], y1: _y, x2: _spans[_i4], y2: _y, kind: "bottom",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+
+					// Emit top edges for this row by subtracting away the previous row.
+					interiorEdges = array[rowIndex].region.subtract(array[rowIndex - 1].region);
+					_spans = interiorEdges.getRawSpans();
+					for (var _i5 = 0; _i5 < _spans.length; _i5 += 2) {
+						edges.push({ x1: _spans[_i5], y1: _y, x2: _spans[_i5 + 1], y2: _y, kind: "top",
+							key1: null, key2: null, next: null, prev: null, used: false });
+					}
+				}
+
+				// Emit verticals everywhere on this row.
+				_spans = array[rowIndex].region.getRawSpans();
+				for (var _i6 = 0; _i6 < _spans.length; _i6 += 2) {
+					edges.push({ x1: _spans[_i6 + 1], y1: _y, x2: _spans[_i6 + 1], y2: _y2, kind: "right",
+						key1: null, key2: null, next: null, prev: null, used: false });
+					edges.push({ x1: _spans[_i6], y1: _y2, x2: _spans[_i6], y2: _y, kind: "left",
+						key1: null, key2: null, next: null, prev: null, used: false });
+				}
+			}
+
+			// Finally, emit the bottom edge(s) for the last row.
+			for (var _i7 = 0; _i7 < _spans.length; _i7 += 2) {
+				edges.push({ x1: _spans[_i7 + 1], y1: _y2, x2: _spans[_i7], y2: _y2, kind: "bottom",
+					key1: null, key2: null, next: null, prev: null, used: false });
+			}
+		}
+
+		return edges;
+	},
+
+
+	/**
+  * Make a lookup table that finds edges quickly (O(1)) by either endpoint, and set up the
+  * edges as a linked list so it's easy to quickly (O(1)) find any un-consumed edge.
+  */
+	makeEdgeTable = function makeEdgeTable(edges) {
+		var table = {};
+
+		for (var i = 0, l = edges.length; i < l; i++) {
+			var edge = edges[i];
+
+			edge.key1 = edge.x1 + "," + edge.y1;
+			edge.key2 = edge.x2 + "," + edge.y2;
+
+			edge.prev = i > 0 ? edges[i - 1] : null;
+			edge.next = i < l - 1 ? edges[i + 1] : null;
+
+			// We only add the 'start' endpoint to the lookup table, because that's
+			// the only point we want to follow to.
+			if (!(edge.key1 in table)) table[edge.key1] = [edge];else table[edge.key1].push(edge);
+		}
+
+		return table;
+	},
+
+
+	/**
+  * Make the windings, clockwise polygons that are formed from adjacent edges.
+  */
+	makeWindings = function makeWindings(edges, table) {
+		// Algorithm:
+		//
+		// Starting with a top edge, follow its endpoints clockwise until we reach that same
+		// start edge.  Wherever duplicate points are found, prefer following top->right,
+		// right->bottom, bottom->left, and left->top.  Remove each edge from the source set
+		// as we follow it.  When we reach the start edge, if there are edges left, repeat the
+		// same whole algorithm until no edges are left.
+
+		var allWindings = [];
+
+		// This will be the linked-list of all unconsumed edges.
+		var firstEdge = edges[0],
+		    lastEdge = edges[edges.length - 1];
+
+		// Consume an edge:  Remove it from the list, and mark it as 'used'.
+		var consumeEdge = function consumeEdge(edge) {
+			if (edge.next) edge.next.prev = edge.prev;else lastEdge = edge.prev;
+
+			if (edge.prev) edge.prev.next = edge.next;else firstEdge = edge.next;
+
+			edge.used = true;
+		};
+
+		// Find the next edge to follow given a set of possible matches.
+		var findBestPossibleEdge = function findBestPossibleEdge(edge, possibleEdges) {
+
+			// Easy degenerate case:  If there's only one edge, take it.
+			if (possibleEdges.length === 1 && !possibleEdges.used) return possibleEdges[0];
+
+			// First, prefer following top->right, right->bottom, bottom->left, and left->top,
+			// if there's a matching edge.
+			for (var i = 0, l = possibleEdges.length; i < l; i++) {
+				if (possibleEdges[i].used) continue;
+				switch (edge.kind) {
+					case 'top':
+						if (possibleEdges[i].kind === 'right') return possibleEdges[i];
+						break;
+					case 'right':
+						if (possibleEdges[i].kind === 'bottom') return possibleEdges[i];
+						break;
+					case 'bottom':
+						if (possibleEdges[i].kind === 'left') return possibleEdges[i];
+						break;
+					case 'left':
+						if (possibleEdges[i].kind === 'top') return possibleEdges[i];
+						break;
+				}
+			}
+
+			// We can't follow our preferred direction, so just take whatever's available.
+			for (var _i8 = 0, _l = possibleEdges.length; _i8 < _l; _i8++) {
+				if (possibleEdges[_i8].used) continue;
+				return possibleEdges[_i8];
+			}
+
+			// Shouldn't get here.
+			throw new regionError("Edge generation failure.");
+		};
+
+		// Main loop:  We do this until we run out of edges.  Each iteration of the loop
+		// will generate one whole polygon.  This whole thing is fairly complex-looking,
+		// but it will run in O(n) time.
+		while (firstEdge) {
+
+			var winding = [];
+
+			// First, find any top edge.  This *could* be up to O(n) in a pathological case, but
+			// average time is O(1) because of how we generated the edges in the first place.
+			var startEdge = firstEdge;
+			while (startEdge.kind !== 'top') {
+				startEdge = startEdge.next;
+			}
+
+			// Consume and emit the start edge.
+			consumeEdge(startEdge);
+			winding.push({ x: startEdge.x1, y: startEdge.y1 });
+
+			// Now walk forward from the current edge, following its end point to successive
+			// start points until we reach the startEdge's start point.
+			var currentEdge = startEdge;
+			var prevX = startEdge.x1,
+			    prevPrevX = null;
+			while (currentEdge.key2 !== startEdge.key1) {
+
+				// First, find the set of possible edges to follow, which should be nonempty.
+				var possibleEdges = table[currentEdge.key2];
+
+				// Move to the edge that is the best one to follow.
+				currentEdge = findBestPossibleEdge(currentEdge, possibleEdges);
+
+				// Consume it, now that we found it.
+				consumeEdge(currentEdge);
+
+				// Emit the next point in the winding.
+				if (currentEdge.x1 === prevX && prevX === prevPrevX) {
+					// This vertical edge was preceded by another vertical edge, so this edge piece extends it.
+					winding[winding.length - 1].y = currentEdge.y1;
+				} else {
+					winding.push({ x: currentEdge.x1, y: currentEdge.y1 });
+				}
+
+				// Record where we've been so we know if we have to extend this edge.
+				prevPrevX = prevX;
+				prevX = currentEdge.x1;
+			}
+
+			// If the last edge was vertical, and it generated an extra point between its
+			// start and the winding's first point, remove its extra point.
+			if (winding[0].x === prevX && prevX === prevPrevX) {
+				winding.pop();
+			}
+
+			// Finished a whole polygon.
+			allWindings.push(winding);
+		}
+
+		return allWindings;
+	},
+
+
+	/**
+  * Calculate a minimal set of nonoverlapping nonadjoining clockwise polygons that describe this region.
+  * The result will be an array of arrays of points, like this:
+  *     [
+  *         [{x:1, y:2}, {x:3, y:2}, {x:3, y:6}, {x:1, y:6}],    // Polygon 1
+  *         [{x:7, y:5}, {x:8, y:5}, {x:8, y:8}, {x:10, y:8}, {x:10, y:9}, {x:7, y:9}]    // Polygon 2
+  *     ]
+  */
+	makePath = function makePath(array) {
+		if (!array.length) return [];
+		var edges = generateEdges(array);
+		var table = makeEdgeTable(edges);
+		var windings = makeWindings(edges, table);
+		return windings;
+	},
+
+
+	//---------------------------------------------------------------------------------------------
+	// Region miscellaneous support.
 
 	/**
   * Calculate a new region whose coordinates have all been translated/scaled by the given amounts.
@@ -1224,6 +1491,8 @@ var Region2D = function () {
 			hash *= 23;
 			hash += band.region.getHashCode() | 0;
 			hash &= ~0;
+
+			prevMax = band.maxY;
 		}
 
 		// Create the region data from the resulting rows and the metadata.
@@ -1259,8 +1528,7 @@ var Region2D = function () {
 	/**
   * Get a copy of the raw row data.
   */
-	_getRawRows = function _getRawRows(data) {
-		var srcArray = data.array;
+	_getRawRows = function _getRawRows(srcArray) {
 		var destArray = [];
 		for (var i = 0, l = srcArray.length; i < l; i++) {
 			var src = srcArray[i];
@@ -1301,7 +1569,8 @@ var Region2D = function () {
 	arrayEquals = function arrayEquals(array1, array2) {
 		if (array1.length != array2.length) return false;
 		for (var i = 0, l = array1.length; i < l; i++) {
-			if (!array1[i].equals(array2[i])) return false;
+			if (array1[i].minY !== array2[i].minY || array1[i].maxY !== array2[i].maxY) return false;
+			if (!array1[i].region.equals(array2[i].region)) return false;
 		}
 		return true;
 	},
@@ -1395,8 +1664,8 @@ var Region2D = function () {
   * Construct a 2-D region either from either nothing or from the given rectangle.
   * 
   * Usage:
-  *     var empty = new Region2d();
-  *     var rectRegion = new Region2d(rect);
+  *     var empty = new Region2D();
+  *     var rectRegion = new Region2D(rect);
   * 
   * The rectangle may be expressed as any of the following three forms:
   *     - An object with { x:, y:, width:, height: } properties.
@@ -1404,7 +1673,7 @@ var Region2D = function () {
   *     - An array with [x, y, width, height] values.
   * 
   * Alternative internal invocation:
-  *     var region = new Region2d(regionData, privateKey);
+  *     var region = new Region2D(regionData, privateKey);
   */
 	function Region2D(rect, key) {
 		var data = key === privateKey ? rect : typeof rect !== 'undefined' ? makeRegionDataFromOneRect(rect) : makeEmptyRegionData();
@@ -1445,7 +1714,7 @@ var Region2D = function () {
 		},
 		not: function not() {
 			// Lazy implementation of 'not': Simply 'xor' with an infinite region.
-			// A better implementation would take advantage of the efficient Region1d#not() method.
+			// A better implementation would take advantage of the efficient Region1D#not() method.
 			var data = getData(this),
 			    otherData = getData(infinite);
 			return new Region2D(xorData(data.array, otherData.array), privateKey);
@@ -1476,7 +1745,7 @@ var Region2D = function () {
 		},
 		doesIntersect: function doesIntersect(other) {
 			verifyRegion2DType(other);
-			return doesIntersectData(getData(this));
+			return doesIntersectData(getData(this), getData(other));
 		},
 		isPointIn: function isPointIn(x, y) {
 			return isPointInData(getData(this), Number(x), Number(y));
@@ -1485,7 +1754,8 @@ var Region2D = function () {
 			verifyRegion2DType(other);
 			var data = getData(this),
 			    otherData = getData(other);
-			if (data.hash != otherData.hash || data.count !== otherData.count) return false;
+			if (data === otherData) return true;
+			if (data.hash !== otherData.hash || data.count !== otherData.count) return false;
 			return arrayEquals(data.array, otherData.array);
 		},
 		getCount: function getCount() {
@@ -1500,9 +1770,9 @@ var Region2D = function () {
 		getBounds: function getBounds() {
 			return getBoundsFromData(getData(this));
 		},
-		/*getPath: function() {
-  	return makePath(getData(this).array);
-  },*/
+		getPath: function getPath() {
+			return makePath(getData(this).array);
+		},
 		getHashCode: function getHashCode() {
 			return getData(this).hash;
 		}
@@ -1542,7 +1812,7 @@ var Region2D = function () {
   *    of that row, and the 'minY' of each row must be greater than or equal to the 'maxY' of
   *    the previous row.  Each row's Region1D must also be nonempty.
   */
-	Region2D.fromRows = function (rows) {
+	Region2D.fromRawRows = function (rows) {
 		return new Region2D(makeDataFromRows(rows), privateKey);
 	};
 
