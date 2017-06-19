@@ -1,10 +1,233 @@
-<html>
+<!DOCTYPE html>
+
+<html lang="en-US">
 <head>
+	<meta charset="UTF-8" />
 	<title>Region2D</title>
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet" type="text/css" />
+	<link rel="stylesheet" href="styles.css" />
+	<link rel="stylesheet" href="demo.css" />
 </head>
 <body>
 
-<h1>Region2D</h1>
+<section class="page-header">
+	<img src="sample.png" style="float:right" />
+	<h1 class="project-name">Region2D</h1>
+	<h2 class="project-tagline">A JavaScript implementation of the Region data type,<br />
+	for performing simple, fast, 2-D <a href="https://en.wikipedia.org/wiki/Constructive_solid_geometry" style="color: #FFF; text-decoration: underline">constructive solid geometry</a>.</h2>
+	<a href="https://github.com/seanofw/region2d" class="btn">GitHub Repo</a>
+	<a href="javascript:void(0)" class="btn">NPM Package (coming soon!)</a>
+	<a href="https://github.com/seanofw/region2d/tree/master/src" class="btn">View Source</a>
+	<a href="#LiveDemo" class="btn">Live Demo</a>
+</section>
+
+<section class="main-content">
+	<a name="WhatIsIt"></a><h1>What Is It?</h1>
+	
+	<p>Regions are a common data structure in 2-D graphics systems.  They let you
+	easily describe non-rectangular sections of the screen by combining rectangles
+	together — if you've ever said, "I need a way to describe this area and this
+	area, but without that area," you're describing a region!</p>
+	
+	<p>This library implements full 2-D regions in JavaScript.  You can create
+	regions by unioning rectangles together, and you can subtract and intersect
+	other rectangles and regions to make more complex regions.  You can convert
+	the resulting region to a set of nonoverlapping rectangles (for example, to
+	create <code>&lt;div&gt;</code> elements that describe the region), and you
+	can test the region to find out when other regions or a point (like the
+	mouse!) intersect it.</p>
+
+	<p>This library is designed to be very efficient, and it can handle many
+	complicated operations quickly — fast enough for animation!  Scroll down
+	and play with the <a href="#LiveDemo">live demo</a> to see just how fast and flexible
+	this library really is.</p>
+	
+	<br /><hr />
+	
+	<a name="Features"></a><h1>Features</h1>
+	<div style="display:flex;flex-flow:row nowrap">
+		<ul>
+			<li>Set-theoretic operations:  Union, Intersect, Subtract, Exclusive-or, Logical Not</li>
+			<li>Intersection tests, for other regions and for points</li>
+			<li>Equality tests, and efficient hash-code generation for dictionary/map keys</li>
+			<li>Conversion to and from sets of rectangles</li>
+			<li>Only 4 KB minified and gzipped</li>
+		</ul>
+		<ul>
+			<li>Transformations:  Translate and Scale</li>
+			<li>Infinite and empty regions</li>
+			<li>Conversion to a path (set of polygons)</li>
+			<li>Data structures that are both opaque and immutable (i.e., <em>safe</em>)</li>
+			<li>Thoroughly unit-tested, with 98% coverage</li>
+		</ul>
+	</div>
+	
+	<br /><hr />
+
+	<a name="Installation"></a><h1>Installation</h1>
+
+	<h2>NodeJS and NPM</h2>
+
+	<p>In NodeJS or a CommonJS environment, install the <a href="javascript:void(0)">region2d</a> package, and then use <code>import</code> or <code>require</code>.</p>
+
+	<p>First:</p>
+	
+<pre>npm install --save region2d</pre>
+
+	<p>Then:</p>
+	
+	<ul>
+	<li><code>import Region2D from "region2d";</code> &nbsp; (ES6)</li>
+	&nbsp; &nbsp; &nbsp; &nbsp; or
+	<li><code>import { Region1D, Region2D, RegionError } from "region2d";</code> &nbsp; (ES6)</li>
+	&nbsp; &nbsp; &nbsp; &nbsp; or
+	<li><code>var Region2D = require('region2d');</code> &nbsp; (in classic JavaScript)</li>
+	</ul>
+
+	<h2>Vanilla JavaScript for the Browser</h2>
+
+	<ol>
+	<li>Download a copy of <code><a href="https://raw.githubusercontent.com/seanofw/region2d/master/plain/region2d.js">region2d.js</a></code> or <code><a href="https://raw.githubusercontent.com/seanofw/region2d/master/plain/region2d.min.js">region2d.min.js</a></code>.  This plain-JavaScript bundle includes both Region types.<br />The minified bundle is 13 KB uncompressed, and is only about 4 KB gzipped.</li><br />
+	<li>Include <code>&lt;script src="region2d.js"&gt;&lt;/script&gt;</code> or <code>&lt;script src="region2d.min.js"&gt;&lt;/script&gt;</code> in your page.<br />This will introduce three new global types, <code>Region1D</code>, <code>Region2D</code>, and <code>RegionError</code>.</li>
+	</ol>
+
+	<br /><hr />
+
+	<a name="LiveDemo"></a><h1>Live Demo</h1>
+	
+	<p>Try it! In the sandbox below, you can drag or resize any of the rectangles you see.
+	On the right, you can create new rectangles or delete existing rectangles
+	to see how they are turned into regions.</p>
+
+	<div id="app"></div>
+	<script src="bundle/demo.min.js"></script>
+
+	<p>By the way, the demo above does <em>not</em> use <tt>&lt;canvas&gt;</tt> — Region2D calculates
+	fast enough that those rectangles — and the "interior" and "exterior" decompositions — are able to
+	all be real <tt>&lt;div&gt;</tt> elements!</p>
+	
+	<br /><hr />
+
+	<a name="Usage"></a><h1>Usage</h1>
+	
+	<h2>Creating Regions</h2>
+	
+	<p><code>Region2D</code> is designed to be very easy to use and very flexible.  Here's
+	a simple demonstration of creating a region from a rectangle:</p>
+	
+<pre>
+import Region2D from 'region2d';
+
+var myRegion = new Region2D({ x:5, y:10, width:10, height:20 });
+</pre>
+
+	<p>There are several ways to construct a <code>Region2D</code> from a rectangle:</p>
+
+	<ul>
+		<li>You can create a <code>Region2D</code> from an array containing a set of exactly four numbers, which will be interpreted as the rectangle's leftmost <code>x</code>, topmost <code>y</code>, its <code>width</code>, and its <code>height</code>, in that order.</li>
+		<li>You can create a <code>Region2D</code> from any object with numeric <code>x</code>, <code>y</code>, <code>width</code>, and <code>height</code> properties.</li>
+		<li>You can create a <code>Region2D</code> from any object with numeric <code>left</code>, <code>top</code>, <code>right</code>, and <code>bottom</code> properties.</li>
+		<li>In browser environments, you can pass in an <code>HTMLElement</code> instance (a DOM element) to construct a region from its bounding box (page-relative).</li>
+	</ul>
+
+	<h2>Other Ways to Create Regions</h2>
+	
+	<ul>
+	<li>There is a helper <code>Region2D.fromRects()</code> method.  This is passed an array
+	of rectangles, which will be unioned together to form the resulting region.</li>
+	<li>There is a helper <code>Region2D.fromRawRows()</code> method that allows you to create
+	the region data directly (fast, but for advanced use only!)</li>
+	<li>Also, there are static <code>Region2D.empty</code> and <code>Region2D.infinite</code>
+	regions, so that you don't need to construct those yourself.</li>
+	</ul>
+	
+	<h2>Combining Regions</h2>
+
+	<p>Once you have created a few <code>Region2D</code> objects, you can combine them together
+	using standard constructive-solid-geometry operations:</p>
+
+<pre>
+var myRegion = new Region2D({ x:5, y:10, width:10, height:20 });
+var yourRegion = new Region2D({ x:10, y:5, width:20, height:10 });
+var theirRegion = new Region2D([ 15, 15, 20, 20 ]);
+
+var ourRegion = myRegion.union(yourRegion);
+
+var remainingRegion = ourRegion.subtract(theirRegion);
+</pre>
+
+	<p>Many common CSG primitives are supported, including <code>.union()</code>, <code>.intersect()</code>,
+	<code>.subtract()</code>, and <code>.xor()</code> (exclusive-or).  In addition, you can also use the
+	<code>.not()</code> method to obtain the complement of a region.  The Region2D library fully supports
+	infinite regions, so logical-not works the way you think it should!</p>
+
+	<h2>Transforming Regions</h2>
+	
+	<p>There are methods you can use to directly alter the size and position of a region:</p>
+	
+	<ul>
+	<li><code>.scale(scaleX, scaleY)</code> - Scale this region: Multiply each of its coordinates by the
+	given scaling factors (1.0 = no change, 2.0 = double size, and so on).</li>
+	<li><code>.translate(deltaX, deltaY)</code> - Translate this region: Add the given delta values to each
+	of its coordinates (0.0 = no change, 1.0 = move one unit to the right, and so on).</li>
+	<li><code>.transform(scaleX, scaleY, deltaX, deltaY)</code> - Scale and then translate this region:
+	This is the same as invoking each operation in sequence, only faster.</li>
+	</ul>
+	
+	<p>There's no explicit <code>.clip()</code> method:  If you need to "clip" a region to a rectangle,
+	you can simply <code>.intersect()</code> it with another region created from that rectangle.</p>
+	
+	<h2>Testing Regions</h2>
+	
+	<p>There are lots of tests you can perform against regions to determine things about them, including:</p>
+	
+	<ul>
+	<li><code>.isEmpty()</code> - Determine if a region is empty (has no rectangles)</li>
+	<li><code>.isInfinite()</code> - Determine if a region stretches to infinity in any direction</li>
+	<li><code>.isFinite()</code> - Opposite of <code>.isInfinite()</code></li>
+	<li><code>.isRectangular()</code> - Determine if a region consists of exactly one rectangle</li>
+	<li><code>.doesIntersect(otherRegion)</code> - Determine if two regions intersect</li>
+	<li><code>.relate(otherRegion)</code> - Determine <em>how</em> two regions intersect: disjoint, A-contains-B, B-contains-A, or equal.</li>
+	<li><code>.isPointIn(x, y)</code> - Determine if the given point is contained within this region</li>
+	<li><code>.equals(otherRegion)</code> - Determine whether two regions are equal (equivalent sets).</li>
+	</ul>
+
+	<h2>Data Extraction</h2>
+	
+	<p>While it's useful to be able to create regions from rectangles, there are also lots of ways
+	to get rectangle data back <em>out</em> of the regions too:</p>
+	
+	<ul>
+	<li><code>.getRects()</code> - Get a minimal array of nonoverlapping rectangles that exactly describe this region</li>
+	<li><code>.getCount()</code> - Quickly get the number of rectangles that <code>.getRects()</code> <em>would</em> return</li>
+	<li><code>.getBounds()</code> - Get the smallest rectangle that contains this entire region.</li>
+	<li><code>.getPath()</code> - Generate a set of one or more clockwise polygons that describe this region's boundary.</li>
+	<li><code>.getHashCode()</code> - Get a 32-bit "hash" code for this region, useful for quickly comparing two regions for <em>inequality</em>.</li>
+	<li><code>.getRawRows()</code> - Get a copy of the raw row data of this region (fast, but for advanced use only!)</li>
+	</ul>
+
+	<br /><hr />
+	
+	<a name="License"></a><h1>License</h1>
+
+	<p>Copyright &copy; 2017 by Sean Werkema.</p>
+	
+	<p>This software is licensed under the terms of the <a href="https://github.com/seanofw/region2d/blob/master/LICENSE.txt">Apache 2.0 Open-Source License</a>, which basically means:</p>
+
+	<ul>
+	<li>It's free, and you can —</li>
+	<li>Do what you want with it, but —</li>
+	<li>Don't claim you wrote it, and —</li>
+	<li>Don't complain if it breaks.</li>
+	</ul>
+	
+	<br /><hr />
+
+	<a name="QuestionsCommentsBugs"></a><h1>Questions, Comments, and Bugs</h1>
+	
+	<p>Questions?  Comments?  Found a bug?  Want a feature?  Please use the <a href="https://github.com/seanofw/region2d/issues">issue tracker</a> for Region2D on GitHub.</p>
+
+</section>
 
 </body>
 </html>

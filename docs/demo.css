@@ -1,0 +1,231 @@
+
+@font-face {
+  font-family: 'FontAwesome';
+  src: url('fonts/fontawesome-webfont.woff2?v=4.7.0') format('woff2'), url('fonts/fontawesome-webfont.woff?v=4.7.0') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.demo {
+	display: flex;
+	flex-flow: row nowrap;
+}
+
+.demo h3 {
+	margin-bottom: 0;
+}
+
+.sandbox .content {
+	width: 720px;
+	height: 600px;
+	border: 2px solid #E0E8F0;
+	background: #F4F8FC;
+	overflow: hidden;
+	position: relative;
+	top: 0;
+	left: 0;
+}
+
+.sandbox .options {
+	float: right;
+	margin-top: -1.6em;
+	padding-right: 1em;
+	font-size: 14px;
+}
+
+.editor {
+	margin-left: 10px;
+}
+
+.editor .content {
+	width: 260px;
+	height: 580px;
+	border: 2px solid #E0E8F0;
+	background: #F4F8FC;
+	padding: 10px;
+	font-size: 14px;
+}
+
+.editor ul.rectangle-list {
+	display: block;
+	margin: 0;
+	padding: 0;
+}
+
+.editor ul.rectangle-list li {
+	display: block;
+	margin: 4px 0;
+	padding: 2px 12px;
+	list-style: none;
+	border: 1px solid #BBB;
+	background: linear-gradient(to bottom, #FFF 0%, #DDD 20%, #DDD 100%);
+	border-radius: 4px;
+	word-wrap: nowrap;
+	white-space: nowrap;
+}
+.editor ul.rectangle-list li.union {
+	background: linear-gradient(to bottom, #FFF 0%, #F8F8C0 20%, #F8F8C0 100%);
+}
+.editor ul.rectangle-list li.intersect {
+	background: linear-gradient(to bottom, #FFF 0%, #DEF 20%, #DEF 100%);
+}
+.editor ul.rectangle-list li.subtract {
+	background: linear-gradient(to bottom, #FFF 0%, #FEE 20%, #FEE 100%);
+}
+.editor ul.rectangle-list li.xor {
+	background: linear-gradient(to bottom, #FFF 0%, #EDF 20%, #EDF 100%);
+}
+
+.editor ul.rectangle-list li .name {
+	display: inline-block;
+	width: 60px;
+	font-weight: bold;
+}
+.editor ul.rectangle-list li .index {
+	display: inline-block;
+	width: 20px;
+	padding-right: 8px;
+	color: rgba(0, 0, 0, 0.667);
+}
+
+.editor a.delete-button {
+	font: 16px FontAwesome;
+	color: #C33;
+	margin: 0 0 0 20px;
+}
+.editor a.delete-button:hover {
+	color: #900;
+}
+.editor a.up-button, .editor a.down-button {
+	font: 18px FontAwesome;
+	color: #444;
+}
+.editor a.up-button:hover, .editor a.down-button:hover {
+	color: #36C;
+}
+.editor a.up-button {
+	margin: 0 0 0 12px;
+}
+.editor a.up-button.disabled, .editor a.down-button.disabled {
+	font: 18px FontAwesome;
+	color: rgba(0, 0, 0, 0.1);
+}
+.editor a.delete-button span.text, .editor a.up-button span.text, .editor a.down-button span.text {
+	/*display: none;*/
+	display: inline-block;
+	overflow: hidden;
+	width: 12px;
+	vertical-align: middle;
+}
+.editor a.up-button span.text:before {
+	content: "\f0d8";
+	padding-right: 16px;
+}
+.editor a.down-button span.text:before {
+	content: "\f0d7";
+	padding-right: 16px;
+}
+.editor a.delete-button span.text:before {
+	content: "\f014";
+	padding-right: 16px;
+}
+
+.editor select.rect-kind {
+	border: 1px solid #DDD;
+}
+.editor .actions {
+	margin: 12px auto 0 auto;
+	text-align: center;
+}
+
+.edge {
+	overflow: hidden;
+	position: absolute;
+	background: url("images/marching-ants.gif");
+}
+
+.rectangle {
+	overflow: hidden;
+	position: absolute;
+	color: rgba(0, 0, 0, 0.5);
+	cursor: pointer;
+	box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.2);
+}
+
+.rectangle.union {
+	border: 1px solid rgba(128, 128, 0, 0.2);
+	background: rgba(255, 255, 0, 0.1);
+}
+
+.rectangle.subtract {
+	border: 1px solid rgba(255, 0, 0, 0.2);
+	background: rgba(255, 0, 0, 0.1);
+}
+
+.rectangle.xor {
+	border: 1px solid rgba(128, 0, 255, 0.2);
+	background: rgba(128, 0, 255, 0.1);
+}
+
+.rectangle.intersect {
+	border: 1px solid rgba(0, 128, 255, 0.2);
+	background: rgba(0, 128, 255, 0.1);
+}
+
+.rectangle.region {
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.25) 100%);
+	box-shadow: none;
+	cursor: default;
+}
+.rectangle.exterior {
+	border: 1px solid rgba(0, 0, 0, 0.1);
+	background: linear-gradient(to bottom, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.2) 100%);
+	box-shadow: none;
+	cursor: default;
+}
+
+.rectangle h4 {
+	position: absolute;
+	top: 0px;
+	left: 4px;
+	margin: 0;
+	padding: 0;
+	font-size: 14px;
+	color: #444;
+	font-weight: bold;
+}
+
+.rectangle .shangle {
+	border: 1px solid #CCC;
+	background: linear-gradient(to bottom, #CCC 0%,
+		#EEE 10%,#CCC 20%, #EEE 30%,#CCC 40%,
+		#EEE 50%,#CCC 60%, #EEE 70%,#CCC 80%,
+		#EEE 90%,#CCC 100%);
+	width: 20px;
+	height: 20px;
+	transform: translate(10px, 10px) rotate(-45deg);
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	cursor: se-resize;
+}
+
+a.button {
+	display: inline-block;
+	margin: 0;
+	padding: 6px 12px;
+	border: 1px solid #CCC;
+	background: linear-gradient(to bottom, #f2f6f8 0%,#d8e1e7 50%,#b5c6d0 51%,#e0eff9 100%);
+	color: #444;
+	border-radius: 12px;
+	text-decoration: none;
+}
+a.button:hover {
+	background: linear-gradient(to bottom, #f8fbfc 0%,#ecf1f4 50%,#dae3e8 51%,#f0f7fc 100%);
+	color: #222;
+}
+a.button:active {
+	background: linear-gradient(to bottom, #86aecc 0%,#d4e4ef 100%);
+	color: #222;
+}
