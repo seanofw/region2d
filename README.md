@@ -33,12 +33,14 @@ Notable features of this implementation include:
 
 
 
+
+
 ## Installation
 
 **Vanilla JavaScript in the Browser:**
 
-- Download a copy of [region.js](plain/region.js) or [region.min.js](plain/region.min.js)  This plain-JavaScript bundle includes both Region types.  The minified bundle is 13 KB uncompressed, and only about 4 KB gzipped.
-- Include `<script src="region.js"></script>` in your page.  This will introduce three new global types, `Region1D`, `Region2D`, and `RegionError`.
+- Download a copy of [region2d.js](plain/region2d.js) or [region2d.min.js](plain/region2d.min.js)  This plain-JavaScript bundle includes both Region types.  The minified bundle is 13 KB uncompressed, and only about 4 KB gzipped.
+- Include `<script src="region2d.js"></script>` in your page.  This will introduce three new global types, `Region1D`, `Region2D`, and `RegionError`.
 
 **For NodeJS and NPM:**
 
@@ -49,6 +51,8 @@ In NodeJS or a CommonJS environment, install the `region2d` package, and then us
 - `import { Region1D, Region2D, RegionError } from "region2d";`  (ES6)
     or
 - `var Region2D = require('region2d');`  (in classic JavaScript)
+
+
 
 
 
@@ -132,12 +136,12 @@ var rect = myRegion.getBounds();                // O(1)
 var arrayOfPolygons = myRegion.getPath();       // Array of arrays of {x:,y:} points.
 var hashCode = myRegion.getHashCode();          // O(1)
 var rawRows = myRegion.getRawRows();            // O(n), where n is the number of rows.
+```
 
 **Static instances:**
-
 ```
-var nothing = Region2d.empty;
-var everything = Region2d.infinite;
+var nothing = Region2D.empty;
+var everything = Region2D.infinite;
 ```
 
 
@@ -201,7 +205,7 @@ var hashCode = myRegion.getHashCode();          // O(1)
 **Static instances:**
 
 ```
-var nothing = Region1d.empty;
+var nothing = Region1D.empty;
 ```
 
 
@@ -212,22 +216,22 @@ var nothing = Region1d.empty;
 
 This implementation uses the _banded rectangles_ technique, which is used in many implementations of X Windows, and which was chosen for its speed.
 
-Each `Region2d` is conceptually represented as a set of nonoverlapping rectangles, where no rectangle may have a minimum or maximum Y coordinate between any other rectangle's minimum or maximum Y coordinate.  Thus the rectangles effectively form horizontal _bands_, where all of the rectangles in a given band have the same minimum and maximum Y coordinate.  In `Region2d`, each band is implemented as a simple object of the form  `{ region:, minY:, maxY: }`, where the `region` property represents the rectangles but is actually a `Region1D` object.  The bands are stored in an array, and are always in strictly ascending Y-coordinate order.
+Each `Region2D` is conceptually represented as a set of nonoverlapping rectangles, where no rectangle may have a minimum or maximum Y coordinate between any other rectangle's minimum or maximum Y coordinate.  Thus the rectangles effectively form horizontal _bands_, where all of the rectangles in a given band have the same minimum and maximum Y coordinate.  In `Region2D`, each band is implemented as a simple object of the form  `{ region:, minY:, maxY: }`, where the `region` property represents the rectangles but is actually a `Region1D` object.  The bands are stored in an array, and are always in strictly ascending Y-coordinate order.
 
-While _banded rectangles_ do not always result in the fewest possible number of rectangles to represent a region, they allow set-theoretic operations to be performed very simply and quickly:  To union, intersect, subtract, or exclusive-or any two regions, you need only line up those regions' bands where they overlap, and apply `Region1d` operations on each pair of bands to produce the result.  (There are considerable details to make that work reliably and efficiently, but that is the basic idea.)
+While _banded rectangles_ do not always result in the fewest possible number of rectangles to represent a region, they allow set-theoretic operations to be performed very simply and quickly:  To union, intersect, subtract, or exclusive-or any two regions, you need only line up those regions' bands where they overlap, and apply `Region1D` operations on each pair of bands to produce the result.  (There are considerable details to make that work reliably and efficiently, but that is the basic idea.)
 
 It also comes with the nice side effect that a readout of all rectangles in the region will always have coordinates that read top-to-bottom, left-to-right, which can be useful for some applications.
 
 ### Invariants
 
-Certain invariants are always maintained for a `Region2d`'s bands:
+Certain invariants are always maintained for a `Region2D`'s bands:
 
 - Bands are always in sorted order of ascending Y coordinate.
 - No band may ever be empty (_i.e., empty bands must be discarded_).
 - No band may have a minimum Y or maximum Y between the minimum Y and maximum Y of another band (_i.e., bands may not overlap_).
 - Two successive bands may not have identical rectangles if the minimum Y of one band matches the maximum Y of another (_i.e., identical bands must be coalesced_).
 
-Within each band, since its rectangles are implemented as a `Region1d`, the `Region1d` invariants also hold for the band's rectangles:
+Within each band, since its rectangles are implemented as a `Region1D`, the `Region1D` invariants also hold for the band's rectangles:
 
 - Rectangles must be in strictly sorted order of ascending X coordinates.
 - No rectangle's maximum X may be greater than or equal to the minimum X of its successor (_i.e., rectangles must not be directly adjacent or overlapping_).
@@ -240,9 +244,9 @@ Using the _banded rectangles_ design ensures that:
 - All unary operations run in a worst-case time of O(n).
 - Some operations (such as a point-test) can run in O(lg n) time.
 
-However, this speed does come at a cost in space, in that `Region2d` may (in a pathological case) require O(n^2) rectangles compared to an optimal representation of the same region.
+However, this speed does come at a cost in space, in that `Region2D` may (in a pathological case) require O(n^2) rectangles compared to an optimal representation of the same region.
 
-But in normal scenarios, `Region2d` requires between n and 2\*n rectangles compared to an optimal representation of the same region, and is much, much faster than an optimal representation.  (`Region2d` requires O(n+m) time for most operations, whereas the optimal representation typically requires O(n\*m) time.)
+But in normal scenarios, `Region2D` requires between n and 2\*n rectangles compared to an optimal representation of the same region, and is much, much faster than an optimal representation.  (`Region2D` requires O(n+m) time for most operations, whereas the optimal representation typically requires O(n\*m) time.)
 
 ### Prior Art
 
@@ -261,6 +265,8 @@ This implementation is missing some features common to other implementations:
 - Direct (efficient) intersection/containment testing of a rectangle against a region
 - Direct (efficient) unioning of a rectangle to a region
 - Direct (efficient) creation of a region from a set of many rectangles
+
+
 
 
 
