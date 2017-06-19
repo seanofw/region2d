@@ -1,59 +1,13 @@
-# Region2D Library
+# Region2D ([Website](https://seanofw.github.io/region2d/))
 
 Copyright © 2017 by Sean Werkema
 
 Licensed under the [Apache 2.0 Open Source License](LICENSE.txt).
 
-
-
 ![Example Region](images/example1.png)
 
 
-
-## Overview
-
-This is a JavaScript implementation of the Region abstract data type, which 2-D graphics systems use to perform constructive solid geometry.
-
-
-
-### Features
-
-Notable features of this implementation include:
-
-- Set-theoretic operations:  Union, Intersect, Subtract, Exclusive-or, Logical Not
-- Intersection tests, both for other regions and for points
-- Equality tests, and efficient hash-code generation for dictionary/map keys
-- Conversion to and from sets of rectangles
-- Conversion to a path (set of polygons)
-- Transformations:  Translate and Scale
-- Infinite and empty regions
-- Unit test coverage
-- Data structures that are both opaque and immutable (i.e., _safe_)
-- Only 4 KB minified and gzipped!
-
-
-
-
-
-## Installation
-
-**Vanilla JavaScript in the Browser:**
-
-- Download a copy of [region2d.js](plain/region2d.js) or [region2d.min.js](plain/region2d.min.js)  This plain-JavaScript bundle includes both Region types.  The minified bundle is 13 KB uncompressed, and only about 4 KB gzipped.
-- Include `<script src="region2d.js"></script>` in your page.  This will introduce three new global types, `Region1D`, `Region2D`, and `RegionError`.
-
-**For NodeJS and NPM:**
-
-In NodeJS or a CommonJS environment, install the `region2d` package, and then use `import` or `require` to pull in the new types:
-
-- `import Region2D from "region2d";`  (ES6)
-    or
-- `import { Region1D, Region2D, RegionError } from "region2d";`  (ES6)
-    or
-- `var Region2D = require('region2d');`  (in classic JavaScript)
-
-
-
+**NOTE:**  For more information, a demo, and tutorials, visit the [website](https://seanofw.github.io/region2d/).
 
 
 ## Region2D usage
