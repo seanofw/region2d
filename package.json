@@ -1,6 +1,6 @@
 {
   "name": "region2d",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A JavaScript implementation of the Region abstract data type, which GUIs use to perform constructive solid geometry with 2-D rectangles.",
   "author": "Sean Werkema",
   "main": "lib/region2d.js",
